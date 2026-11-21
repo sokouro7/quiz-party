@@ -160,6 +160,13 @@ h2{font-size:clamp(22px,3vw,32px);font-weight:700;letter-spacing:-.02em}
 .qr svg{width:100%;height:100%;display:block}
 .net{font-size:12px}
 #confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
+.modal-bg{position:fixed;inset:0;background:rgba(8,6,30,.75);backdrop-filter:blur(6px);z-index:80;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{width:100%;max-width:820px;max-height:92vh;overflow:auto;background:#1A1747;border:1px solid var(--line);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.modal textarea{font-family:ui-monospace,Menlo,monospace;font-size:14px;min-height:240px}
+.prev{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto}
+.prev div{padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.05);font-size:14px}
+.prev .err{background:rgba(239,68,68,.18);color:#FCA5A5}
+.fmt{font-family:ui-monospace,Menlo,monospace;font-size:13px;background:rgba(255,255,255,.05);border-radius:12px;padding:12px;white-space:pre-wrap;color:#C7D2FE}
 .kbd{font-size:12px;padding:2px 6px;border-radius:6px;border:1px solid var(--line);color:var(--mute)}
 @media (max-width:700px){
   body{background-attachment:scroll}
@@ -401,7 +408,7 @@ function renderJoinCode(){
     <button class="btn big" id="go">Rejoindre</button>
     <a href="#" class="mute" style="font-size:14px">Retour</a></div>`;
   const go = () => { const c = $('#code').value.trim().toUpperCase(); if(c.length === 4) location.hash = 'join=' + c; else toast('Le code fait 4 lettres'); };
-  $('#go').onclick = go; $('#code').onkeydown = e => e.key === 'Enter' && go();
+  $('#go').onclick = go; $('#code').addEventListener('keydown', e => { if(e.key === 'Enter') go(); });
 }
 
 /* =========================================================
@@ -424,7 +431,8 @@ function renderEditor(saved){
   app.innerHTML = `
   <div class="topbar"><a href="#" class="logo">Quiz <b>Party</b></a>
     <div class="row">
-      <button class="btn ghost sm" data-a="import">⬆️ Importer</button>
+      <button class="btn ghost sm" data-a="importText">📝 Importer du texte</button>
+      <button class="btn ghost sm" data-a="import">⬆️ JSON</button>
       <button class="btn ghost sm" data-a="export">⬇️ Exporter</button>
       <button class="btn ghost sm" data-a="demo">↺ Démo</button>
     </div></div>
@@ -463,6 +471,7 @@ function renderEditor(saved){
     if(a === 'demo'){ if(confirm('Remplacer le quiz actuel par la démo ?')){ QUIZ = demoQuiz(); saveQuiz(); renderEditor(saved); } }
     if(a === 'export'){ const blob = new Blob([JSON.stringify(QUIZ, null, 2)], {type:'application/json'}); const l = document.createElement('a'); l.href = URL.createObjectURL(blob); l.download = (QUIZ.title || 'quiz').replace(/[^\w-]+/g,'_') + '.json'; l.click(); }
     if(a === 'import') $('#fileIn').click();
+    if(a === 'importText') openImport(saved);
     if(a === 'launch') launchGame();
     if(a === 'resume'){ G = saved; connectHost(); renderHost(); }
     if(a === 'drop'){ store.del('quiz-host-game'); renderEditor(null); }
@@ -535,6 +544,162 @@ function editorCard(q, i){
       ${q.type !== 'sondage' ? `<div><span class="lbl">Points</span><select data-f="points" data-i="${i}">${[0,250,500,800,1000,1500,2000].map(p => `<option value="${p}" ${q.points === p ? 'selected':''}>${p}</option>`).join('')}</select></div>` : ''}
       ${q.type !== 'sondage' && q.type !== 'estimation' ? `<div style="display:flex;align-items:flex-end;padding-bottom:10px"><label class="toggle"><input type="checkbox" data-f="speed" data-i="${i}" ${q.speed ? 'checked':''}> ⚡ Bonus vitesse</label></div>` : ''}
     </div></div>`;
+}
+
+/* ---------- Import texte ----------
+   Format simple, pensé pour être dicté puis collé :
+
+   QCM: Quelle est la capitale de l'Australie ? [20s] [1000pts]
+   - Sydney
+   * Canberra
+   - Melbourne
+
+   VF: Le cœur d'une crevette est dans sa tête.
+   = Vrai
+
+   ESTIMATION: Année du premier pas sur la Lune ?
+   = 1969
+
+   Types : QCM, VF, MAJORITE, MINORITE, SONDAGE, ESTIMATION (Q: = QCM)
+   "*" = bonne réponse, "-" = autre réponse, "=" = réponse (VF ou estimation)
+   Options : [20s] [1000pts] [vitesse] [sans vitesse]
+------------------------------------ */
+const IMPORT_FORMAT = `QCM: Quelle est la capitale de l'Australie ? [20s] [1000pts]
+- Sydney
+* Canberra
+- Melbourne
+- Perth
+
+VF: Le cœur d'une crevette se trouve dans sa tête.
+= Vrai
+
+MAJORITE: Pizza à l'ananas, crime ou génie ?
+- Crime
+- Génie
+
+MINORITE: Choisis un chiffre.
+- 1
+- 2
+- 3
+
+SONDAGE: Prochaine soirée ?
+- Raclette
+- Karaoké
+
+ESTIMATION: En quelle année le premier pas sur la Lune ? [25s]
+= 1969`;
+
+const CLAUDE_PROMPT = `Transforme mes questions au format "Quiz Party" ci-dessous. Réponds uniquement avec le bloc de texte, sans commentaire.
+
+Règles :
+- Chaque question commence par son type suivi de ":" : QCM, VF (vrai/faux), MAJORITE (la réponse la plus votée gagne), MINORITE (la moins votée gagne), SONDAGE (pas de points), ESTIMATION (réponse chiffrée, le plus proche gagne).
+- QCM, MAJORITE, MINORITE, SONDAGE : une réponse par ligne commençant par "-" (2 à 6 réponses). Pour un QCM, la ou les bonnes réponses commencent par "*" au lieu de "-".
+- VF : une ligne "= Vrai" ou "= Faux".
+- ESTIMATION : une ligne "= nombre", avec l'unité après si utile (ex : "= 330 m").
+- Options facultatives en fin de ligne de question : [20s] pour le temps, [1000pts] pour les points, [sans vitesse] pour désactiver le bonus vitesse.
+- Une ligne vide entre chaque question.
+- Si je ne précise pas le type, choisis le plus adapté. Si je ne donne pas les mauvaises réponses d'un QCM, invente des propositions crédibles.
+
+Exemple :
+${IMPORT_FORMAT}
+
+Mes questions :
+`;
+
+const TYPE_ALIASES = {q:'qcm', qcm:'qcm', question:'qcm', vf:'vf', 'vrai/faux':'vf', 'vrai faux':'vf', 'vrai-faux':'vf',
+  majorite:'majorite', majorité:'majorite', minorite:'minorite', minorité:'minorite', sondage:'sondage', estimation:'estimation', nombre:'estimation'};
+
+function parseQuestionsText(raw){
+  const txt = raw.trim();
+  if(!txt) return {questions:[], errors:[]};
+  if(txt[0] === '{' || txt[0] === '['){
+    try{ const d = JSON.parse(txt); const arr = Array.isArray(d) ? d : d.questions;
+      return {questions: arr.map(q => ({...newQuestion(q.type || 'qcm'), ...q, id:uid()})), errors:[]};
+    }catch(e){ return {questions:[], errors:['JSON invalide']}; }
+  }
+  const out = []; let cur = null;
+  const headRe = /^(?:\d+\s*[.)-]\s*)?(qcm|q|question|vf|vrai\s*[\/-]?\s*faux|majorit[ée]|minorit[ée]|sondage|estimation|nombre)\s*[:.)-]\s*(.+)$/i;
+  for(let line of txt.split(/\r?\n/)){
+    line = line.trim();
+    if(!line) continue;
+    const h = line.match(headRe);
+    if(h){
+      const type = TYPE_ALIASES[h[1].toLowerCase().replace(/\s+/g,' ')] || 'qcm';
+      let text = h[2];
+      cur = newQuestion(type); cur.choices = []; if(type === 'qcm') cur.correct = []; if(type === 'vf') cur.correct = [];
+      const t = text.match(/\[\s*(\d+)\s*s(?:ec)?\s*\]/i); if(t) cur.time = Math.min(120, Math.max(5, +t[1]));
+      const pt = text.match(/\[\s*(\d+)\s*pts?\s*\]/i); if(pt) cur.points = +pt[1];
+      if(/\[\s*sans\s+vitesse\s*\]/i.test(text)) cur.speed = false;
+      else if(/\[\s*vitesse\s*\]/i.test(text)) cur.speed = true;
+      cur.text = text.replace(/\[[^\]]*\]/g, '').trim();
+      out.push(cur); continue;
+    }
+    if(!cur){ cur = newQuestion('qcm'); cur.choices = []; cur.correct = []; cur.text = line; out.push(cur); continue; }
+    const ans = line.match(/^=\s*(.+)$/);
+    if(ans){
+      const v = ans[1].trim();
+      if(cur.type === 'vf'){ cur.correct = [/^f/i.test(v) ? 1 : 0]; }
+      else { const m = v.replace(/\s/g,'').match(/^-?[\d.,]+/);
+        if(cur.type !== 'estimation'){ cur.type = 'estimation'; cur.choices = []; cur.correct = []; cur.speed = false; }
+        cur.answer = m ? +m[0].replace(',', '.') : ''; cur.unit = v.replace(/^[\s\d.,-]+/, '').trim(); }
+      continue;
+    }
+    const c = line.match(/^([-*•✓✅+]|\d+[.)])\s*(.+)$/);
+    if(c && cur.type !== 'vf' && cur.type !== 'estimation'){
+      let label = c[2].trim(), good = /^[*✓✅+]$/.test(c[1]);
+      if(/\s*\((bonne|vrai|correct)\)\s*$/i.test(label)){ good = true; label = label.replace(/\s*\((bonne|vrai|correct)\)\s*$/i, ''); }
+      if(cur.choices.length < 6){ cur.choices.push(label); if(good && cur.type === 'qcm') cur.correct.push(cur.choices.length - 1); }
+      continue;
+    }
+    cur.text += ' ' + line; // suite du texte de la question
+  }
+  const errors = [];
+  out.forEach((q, i) => {
+    const n = `Q${i+1}`;
+    if(!q.text) errors.push(`${n} : texte vide`);
+    if(q.type === 'vf' && !q.correct.length) errors.push(`${n} : ajoute "= Vrai" ou "= Faux"`);
+    if(q.type === 'estimation' && (q.answer === '' || isNaN(q.answer))) errors.push(`${n} : ajoute "= nombre"`);
+    if(['qcm','majorite','minorite','sondage'].includes(q.type) && q.choices.length < 2) errors.push(`${n} : il faut au moins 2 réponses`);
+    if(q.type === 'qcm' && q.choices.length >= 2 && !q.correct.length) errors.push(`${n} : marque la bonne réponse avec *`);
+  });
+  return {questions: out, errors};
+}
+
+function openImport(saved){
+  const bg = document.createElement('div'); bg.className = 'modal-bg';
+  bg.innerHTML = `<div class="modal">
+    <div class="row"><h2 class="grow">📝 Importer des questions</h2><button class="icon-btn" id="imClose">✕</button></div>
+    <p class="mute">Colle tes questions au format ci-dessous (ou un JSON exporté). Astuce : dicte tes questions à Claude avec le prompt, puis colle sa réponse ici.</p>
+    <div class="row"><button class="btn ghost sm" id="imPrompt">📋 Copier le prompt pour Claude</button><button class="btn ghost sm" id="imEx">Voir un exemple</button></div>
+    <div class="fmt" id="imFmt" hidden></div>
+    <textarea id="imTxt" placeholder="QCM: Ta question ?&#10;- Mauvaise réponse&#10;* Bonne réponse"></textarea>
+    <div class="prev" id="imPrev"></div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn ghost" id="imReplace" disabled>Remplacer le quiz</button>
+      <button class="btn warm" id="imAdd" disabled>Ajouter à la suite</button></div></div>`;
+  document.body.appendChild(bg);
+  const ta = $('#imTxt', bg); let parsed = {questions:[], errors:[]};
+  const close = () => bg.remove();
+  const refresh = () => {
+    parsed = parseQuestionsText(ta.value);
+    const errByQ = new Set(parsed.errors.map(e => +e.match(/^Q(\d+)/)?.[1]));
+    $('#imPrev', bg).innerHTML = parsed.questions.map((q,i) => `<div class="${errByQ.has(i+1) ? 'err' : ''}">${TYPES[q.type].icon} <b>${esc(TYPES[q.type].label)}</b> · ${esc(q.text)}
+      <span class="mute">${q.type === 'estimation' ? '= ' + esc(q.answer) + ' ' + esc(q.unit||'') : q.type === 'vf' ? '= ' + (q.correct[0] === 1 ? 'Faux' : 'Vrai') : choicesOf(q).map((c,ci) => q.correct.includes(ci) && q.type === 'qcm' ? '✓ ' + esc(c) : esc(c)).join(' · ')}</span></div>`).join('')
+      + parsed.errors.map(e => `<div class="err">⚠️ ${esc(e)}</div>`).join('');
+    const ok = parsed.questions.length && !parsed.errors.length;
+    $('#imAdd', bg).disabled = $('#imReplace', bg).disabled = !ok;
+    $('#imAdd', bg).textContent = ok ? `Ajouter ${parsed.questions.length} question${parsed.questions.length > 1 ? 's' : ''}` : 'Ajouter à la suite';
+  };
+  ta.addEventListener('input', refresh);
+  $('#imClose', bg).onclick = close;
+  bg.addEventListener('click', e => { if(e.target === bg) close(); });
+  $('#imEx', bg).onclick = () => { const f = $('#imFmt', bg); f.textContent = IMPORT_FORMAT; f.hidden = !f.hidden; };
+  $('#imPrompt', bg).onclick = () => navigator.clipboard?.writeText(CLAUDE_PROMPT).then(() => toast('Prompt copié, colle-le dans Claude'), () => toast('Copie impossible ici'));
+  const apply = replace => { if(replace){ if(!confirm('Remplacer toutes les questions actuelles ?')) return; QUIZ.questions = parsed.questions; } else QUIZ.questions.push(...parsed.questions);
+    saveQuiz(); close(); renderEditor(saved); toast(`${parsed.questions.length} question(s) importée(s) ✅`); };
+  $('#imAdd', bg).onclick = () => apply(false);
+  $('#imReplace', bg).onclick = () => apply(true);
+  ta.focus();
 }
 
 function validateQuiz(){
@@ -1019,7 +1184,7 @@ function renderPlayer(){
     if(e.target.id === 'estGo') sendEst();
   };
   setNet(NET);
-  const est = $('#est'); if(est){ est.onkeydown = e => e.key === 'Enter' && sendEst(); }
+  const est = $('#est'); if(est) est.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); sendEst(); } });
   updateTimers();
 }
 function sendEst(){ const v = $('#est').value.replace(',', '.').replace(/\s/g, ''); if(v === '' || !isFinite(+v)) return toast('Entre un nombre'); sendAnswer(+v); }
