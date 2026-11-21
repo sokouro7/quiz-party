@@ -167,6 +167,10 @@ h2{font-size:clamp(22px,3vw,32px);font-weight:700;letter-spacing:-.02em}
 .prev div{padding:8px 10px;border-radius:10px;background:rgba(255,255,255,.05);font-size:14px}
 .prev .err{background:rgba(239,68,68,.18);color:#FCA5A5}
 .fmt{font-family:ui-monospace,Menlo,monospace;font-size:13px;background:rgba(255,255,255,.05);border-radius:12px;padding:12px;white-space:pre-wrap;color:#C7D2FE}
+.lib{display:flex;flex-direction:column;gap:8px}
+.lib-row{display:flex;align-items:center;gap:8px;padding:12px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
+.lib-row.cur{border-color:var(--indigo-2);background:rgba(99,102,241,.15)}
+.lib-t{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .kbd{font-size:12px;padding:2px 6px;border-radius:6px;border:1px solid var(--line);color:var(--mute)}
 @media (max-width:700px){
   body{background-attachment:scroll}
@@ -370,8 +374,89 @@ function demoQuiz(){
     ]
   };
 }
-let QUIZ = store.get('quiz-draft', null) || demoQuiz();
-const saveQuiz = () => store.set('quiz-draft', QUIZ);
+/* ---------- Bibliothèque de quiz (localStorage de ce navigateur) ---------- */
+function normalizeQuiz(d){
+  d.id = d.id || uid(); d.title = d.title || 'Quiz sans titre';
+  d.teams = d.teams || {enabled:false, list: TEAM_PRESETS.slice(0,2).map(t => ({id:uid(), ...t}))};
+  d.questions = (d.questions || []).map(q => ({...newQuestion(q.type || 'qcm'), ...q, id: q.id || uid(), choices: q.choices || [], correct: q.correct || []}));
+  d.updatedAt = d.updatedAt || Date.now();
+  return d;
+}
+function loadLibrary(){
+  let lib = store.get('quiz-library', null);
+  if(!Array.isArray(lib) || !lib.length){
+    const old = store.get('quiz-draft', null); // reprise de l'ancienne sauvegarde unique
+    lib = [old || demoQuiz()];
+  }
+  return lib.map(normalizeQuiz);
+}
+let LIB = loadLibrary();
+let QUIZ = LIB.find(q => q.id === store.get('quiz-current', null)) || LIB[0];
+function saveLibrary(){ store.set('quiz-library', LIB); store.set('quiz-current', QUIZ.id); }
+function saveQuiz(){
+  QUIZ.updatedAt = Date.now();
+  const i = LIB.findIndex(q => q.id === QUIZ.id);
+  if(i < 0) LIB.unshift(QUIZ); else LIB[i] = QUIZ;
+  saveLibrary();
+}
+function downloadJSON(obj, name){
+  const blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'});
+  const l = document.createElement('a'); l.href = URL.createObjectURL(blob);
+  l.download = name.replace(/[^\wÀ-ÿ-]+/g, '_') + '.json'; document.body.appendChild(l); l.click(); l.remove();
+}
+const fmtDate = t => new Date(t).toLocaleString('fr-FR', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+
+function openLibrary(saved){
+  const bg = document.createElement('div'); bg.className = 'modal-bg';
+  const draw = () => {
+    const list = [...LIB].sort((a,b) => b.updatedAt - a.updatedAt);
+    bg.innerHTML = `<div class="modal">
+      <div class="row"><h2 class="grow">📚 Mes quiz</h2><button class="icon-btn" data-l="close">✕</button></div>
+      <div class="row"><button class="btn sm warm" data-l="new">+ Nouveau quiz</button><button class="btn ghost sm" data-l="demo">+ Quiz de démo</button>
+        <div class="grow"></div><button class="btn ghost sm" data-l="exportAll">⬇️ Sauvegarder tout</button><button class="btn ghost sm" data-l="restore">⬆️ Restaurer</button></div>
+      <div class="lib">${list.map(q => `<div class="lib-row ${q.id === QUIZ.id ? 'cur' : ''}">
+        <div class="grow" style="min-width:0"><div class="lib-t">${esc(q.title)}${q.id === QUIZ.id ? ' <span class="pill" style="font-size:11px;padding:3px 8px">ouvert</span>' : ''}</div>
+          <div class="mute" style="font-size:13px">${q.questions.length} question${q.questions.length > 1 ? 's' : ''} · modifié le ${fmtDate(q.updatedAt)}</div></div>
+        ${q.id !== QUIZ.id ? `<button class="btn sm" data-l="open" data-id="${q.id}">Ouvrir</button>` : ''}
+        <button class="icon-btn" data-l="dup" data-id="${q.id}" title="Dupliquer">⧉</button>
+        <button class="icon-btn" data-l="export" data-id="${q.id}" title="Exporter ce quiz">⬇️</button>
+        <button class="icon-btn" data-l="del" data-id="${q.id}" title="Supprimer">🗑</button></div>`).join('')}</div>
+      <p class="mute" style="font-size:13px">Les quiz sont enregistrés dans ce navigateur, sur cet ordi. "Sauvegarder tout" télécharge un fichier de secours que tu peux restaurer n'importe où.</p>
+      <input type="file" id="libIn" accept=".json" hidden></div>`;
+    $('#libIn', bg).onchange = async e => {
+      try{ const d = JSON.parse(await e.target.files[0].text());
+        const arr = Array.isArray(d.library) ? d.library : Array.isArray(d) ? d : (Array.isArray(d.questions) ? [d] : null);
+        if(!arr) throw 0;
+        let added = 0;
+        arr.forEach(q => { q = normalizeQuiz(q); const i = LIB.findIndex(x => x.id === q.id);
+          if(i >= 0){ if(q.updatedAt >= LIB[i].updatedAt) LIB[i] = q; } else { LIB.push(q); added++; } });
+        QUIZ = LIB.find(q => q.id === QUIZ.id) || LIB[0]; saveLibrary(); draw(); toast(`${arr.length} quiz restauré(s) ✅`);
+      }catch{ toast('Fichier invalide'); }
+    };
+  };
+  const close = () => { bg.remove(); renderEditor(saved); };
+  bg.addEventListener('click', e => {
+    if(e.target === bg) return close();
+    const b = e.target.closest('[data-l]'); if(!b) return;
+    const a = b.dataset.l, q = LIB.find(x => x.id === b.dataset.id);
+    if(a === 'close') return close();
+    if(a === 'new'){ QUIZ = normalizeQuiz({title:'Nouveau quiz', questions:[]}); saveQuiz(); return close(); }
+    if(a === 'demo'){ QUIZ = normalizeQuiz(demoQuiz()); saveQuiz(); return close(); }
+    if(a === 'open'){ QUIZ = q; saveLibrary(); return close(); }
+    if(a === 'dup'){ const c = normalizeQuiz({...JSON.parse(JSON.stringify(q)), id:uid(), title: q.title + ' (copie)', updatedAt: Date.now()}); LIB.push(c); saveLibrary(); draw(); }
+    if(a === 'export') downloadJSON(q, q.title || 'quiz');
+    if(a === 'exportAll') downloadJSON({app:'quiz-party', savedAt:new Date().toISOString(), library:LIB}, 'quiz-party-sauvegarde-' + new Date().toISOString().slice(0,10));
+    if(a === 'restore') $('#libIn', bg).click();
+    if(a === 'del'){
+      if(!confirm(`Supprimer "${q.title}" ? Cette action est définitive.`)) return;
+      LIB = LIB.filter(x => x.id !== q.id);
+      if(!LIB.length) LIB.push(normalizeQuiz({title:'Nouveau quiz', questions:[]}));
+      if(QUIZ.id === q.id) QUIZ = LIB[0];
+      saveLibrary(); draw();
+    }
+  });
+  document.body.appendChild(bg); draw();
+}
 
 /* =========================================================
    ROUTAGE
@@ -432,9 +517,9 @@ function renderEditor(saved){
   <div class="topbar"><a href="#" class="logo">Quiz <b>Party</b></a>
     <div class="row">
       <button class="btn ghost sm" data-a="importText">📝 Importer du texte</button>
-      <button class="btn ghost sm" data-a="import">⬆️ JSON</button>
+      <button class="btn ghost sm" data-a="import">⬆️ Importer un fichier</button>
       <button class="btn ghost sm" data-a="export">⬇️ Exporter</button>
-      <button class="btn ghost sm" data-a="demo">↺ Démo</button>
+      <button class="btn ghost sm" data-a="library">📚 Mes quiz (${LIB.length})</button>
     </div></div>
   <div class="wrap">
     ${saved && saved.phase && saved.phase !== 'podium' ? `<div class="banner row"><div class="grow">Une partie <b>${esc(saved.room)}</b> est en cours (${Object.keys(saved.players||{}).length} joueurs).</div><button class="btn sm warm" data-a="resume">Reprendre</button><button class="btn sm ghost" data-a="drop">Abandonner</button></div>` : ''}
@@ -468,8 +553,8 @@ function renderEditor(saved){
     if(a === 'down' && i < qs.length - 1){ [qs[i+1], qs[i]] = [qs[i], qs[i+1]]; saveQuiz(); renderEditor(saved); }
     if(a === 'addc'){ if(qs[i].choices.length < 6){ qs[i].choices.push(''); saveQuiz(); renderEditor(saved); } }
     if(a === 'delc'){ const c = +b.dataset.c; qs[i].choices.splice(c,1); qs[i].correct = qs[i].correct.filter(x => x !== c).map(x => x > c ? x-1 : x); saveQuiz(); renderEditor(saved); }
-    if(a === 'demo'){ if(confirm('Remplacer le quiz actuel par la démo ?')){ QUIZ = demoQuiz(); saveQuiz(); renderEditor(saved); } }
-    if(a === 'export'){ const blob = new Blob([JSON.stringify(QUIZ, null, 2)], {type:'application/json'}); const l = document.createElement('a'); l.href = URL.createObjectURL(blob); l.download = (QUIZ.title || 'quiz').replace(/[^\w-]+/g,'_') + '.json'; l.click(); }
+    if(a === 'library') openLibrary(saved);
+    if(a === 'export') downloadJSON(QUIZ, QUIZ.title || 'quiz');
     if(a === 'import') $('#fileIn').click();
     if(a === 'importText') openImport(saved);
     if(a === 'launch') launchGame();
@@ -497,9 +582,8 @@ function renderEditor(saved){
   };
   $('#fileIn').onchange = async e => {
     try{ const data = JSON.parse(await e.target.files[0].text()); if(!Array.isArray(data.questions)) throw 0;
-      data.teams = data.teams || {enabled:false, list: TEAM_PRESETS.slice(0,2).map(t => ({id:uid(), ...t}))};
-      data.questions.forEach(q => { q.id = q.id || uid(); q.choices = q.choices || []; q.correct = q.correct || []; });
-      QUIZ = data; saveQuiz(); renderEditor(saved); toast('Quiz importé ✅');
+      const nq = normalizeQuiz({...data, id: uid(), updatedAt: Date.now()}); // importé comme nouveau quiz
+      QUIZ = nq; saveQuiz(); renderEditor(saved); toast('Quiz importé dans "Mes quiz" ✅');
     }catch{ toast('Fichier JSON invalide'); }
   };
 }
