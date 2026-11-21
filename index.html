@@ -171,6 +171,48 @@ h2{font-size:clamp(22px,3vw,32px);font-weight:700;letter-spacing:-.02em}
 .lib-row{display:flex;align-items:center;gap:8px;padding:12px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
 .lib-row.cur{border-color:var(--indigo-2);background:rgba(99,102,241,.15)}
 .lib-t{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.custom{border-color:var(--warm)!important}
+/* ---- Effets / Noël ---- */
+#snow{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+#app{position:relative;z-index:1}
+body.noel{background:radial-gradient(1200px 700px at 15% -10%,#1E3A8A 0%,transparent 60%),radial-gradient(900px 600px at 110% 110%,#7F1D1D 0%,transparent 55%),#0A1230;background-attachment:fixed}
+.hills{position:fixed;left:0;right:0;bottom:0;width:100%;height:90px;pointer-events:none;z-index:0;display:none}
+body.noel.lobbyfx .hills{display:block}
+.sleigh{position:fixed;top:12vh;left:0;z-index:2;pointer-events:none;width:min(360px,80vw);animation:sleigh 10s linear forwards}
+.sleigh svg{width:100%;height:auto;display:block;overflow:visible}
+@keyframes sleigh{0%{transform:translate(-110%,0)}25%{transform:translate(22vw,-28px)}50%{transform:translate(48vw,12px)}75%{transform:translate(74vw,-22px)}100%{transform:translate(102vw,0)}}
+.sleigh .bob{animation:bob .45s ease-in-out infinite alternate}
+.sleigh .bob2{animation:bob .45s ease-in-out .2s infinite alternate}
+@keyframes bob{to{transform:translateY(5px)}}
+.sleigh .twk{animation:twk 1s ease-in-out infinite alternate}
+@keyframes twk{from{opacity:.2}to{opacity:1}}
+.arena{position:relative;width:100%;max-width:1000px;height:clamp(220px,34vh,340px);border-radius:24px;background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.18);overflow:hidden}
+.arena .empty{position:absolute;inset:0;display:grid;place-items:center;color:var(--mute)}
+.bubble{position:absolute;left:0;top:0;display:flex;align-items:center;gap:8px;padding:8px 16px 8px 10px;border-radius:999px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);font-weight:700;font-size:18px;white-space:nowrap;cursor:pointer;will-change:transform;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.bubble .e{font-size:30px;line-height:1}
+.bubble:hover{background:rgba(239,68,68,.35)}
+.ptag.wiggle{animation:pop .45s cubic-bezier(.2,1.6,.4,1) both,wiggle 2.4s ease-in-out .45s infinite}
+@keyframes wiggle{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-6px) rotate(-4deg)}75%{transform:translateY(4px) rotate(4deg)}}
+.proj{position:fixed;left:0;top:0;z-index:60;pointer-events:none;font-size:34px;line-height:1;will-change:transform}
+.snowball{width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0%,#EAF2FF 55%,#A9C6F5 100%);box-shadow:0 3px 8px rgba(0,0,0,.3)}
+.react-btn{font-size:60px;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.3);display:grid;place-items:center;animation:pulse 1.8s infinite;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.react-btn:active{transform:scale(.9)}
+/* ---- Révélation côté téléphone ---- */
+.p-banner{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:18px;animation:pop .5s cubic-bezier(.2,1.4,.4,1) both}
+.p-banner .emo{font-size:40px;line-height:1}
+.p-banner .t{font-size:21px;font-weight:700;line-height:1.1}
+.p-banner .pts{margin-left:auto;font-size:24px;font-weight:700;white-space:nowrap}
+.p-q{font-weight:700;font-size:17px;text-align:center;padding:2px 6px;line-height:1.25}
+.p-res{display:flex;flex-direction:column;gap:8px}
+.p-res .r{position:relative;display:flex;align-items:center;gap:10px;padding:13px 14px;border-radius:14px;overflow:hidden;font-weight:600;animation:slideUp .4s both}
+.p-res .r .bar{position:absolute;left:0;top:0;bottom:0;background:rgba(255,255,255,.22);width:0;transition:width 1s cubic-bezier(.2,.8,.2,1)}
+.p-res .r>span{position:relative}
+.p-res .r.dim{opacity:.38;filter:saturate(.5)}
+.p-res .r.win{outline:3px solid #fff;outline-offset:-3px}
+.p-note{font-size:13px;color:var(--mute);text-align:center}
+.mini-lb .r{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.07);margin-bottom:6px;font-weight:600}
+.mini-lb .r.me{background:rgba(99,102,241,.45);outline:2px solid var(--indigo-2)}
+@media (max-width:700px){body.noel{background-attachment:scroll}}
 .kbd{font-size:12px;padding:2px 6px;border-radius:6px;border:1px solid var(--line);color:var(--mute)}
 @media (max-width:700px){
   body{background-attachment:scroll}
@@ -184,6 +226,8 @@ h2{font-size:clamp(22px,3vw,32px);font-weight:700;letter-spacing:-.02em}
 </style>
 </head>
 <body>
+<canvas id="snow"></canvas>
+<svg class="hills" viewBox="0 0 1440 90" preserveAspectRatio="none" aria-hidden="true"><path d="M0 50 Q180 10 360 42 T720 38 T1080 34 T1440 44 V90 H0Z" fill="#DCE8FF" opacity=".85"/><path d="M0 70 Q240 40 480 66 T960 62 T1440 68 V90 H0Z" fill="#fff"/></svg>
 <div id="app"></div>
 <canvas id="confetti"></canvas>
 <div id="toast"></div>
@@ -340,6 +384,165 @@ function loopConf(){
   confRAF = parts.length ? requestAnimationFrame(loopConf) : (cx.clearRect(0,0,cv.width,cv.height), null);
 }
 
+/* ---------- Effets : neige, traîneau, projectiles ---------- */
+const snowCv = $('#snow'), sx = snowCv.getContext('2d'); let flakes = [], snowTarget = 0, snowOn = false;
+function resizeSnow(){ snowCv.width = innerWidth * devicePixelRatio; snowCv.height = innerHeight * devicePixelRatio; }
+addEventListener('resize', resizeSnow); resizeSnow();
+function newFlake(anywhere){ const d = devicePixelRatio, r = Math.random() * 2.6 + 1;
+  return {x: Math.random() * snowCv.width, y: anywhere ? Math.random() * snowCv.height : -10 * d, r, vy: .35 + r * .35, vx: (Math.random() - .5) * .3, ph: Math.random() * 6, w: .01 + Math.random() * .02, amp: .3 + Math.random() * .6, a: .35 + Math.random() * .5}; }
+function setSnow(level){
+  snowTarget = Math.round(level * (innerWidth < 700 ? 70 : 170));
+  if(!snowOn && snowTarget > 0){ snowOn = true; requestAnimationFrame(snowLoop); }
+}
+function snowLoop(){
+  const W = snowCv.width, H = snowCv.height, d = devicePixelRatio;
+  if(flakes.length < snowTarget){ const first = !flakes.length; for(let i = flakes.length; i < snowTarget; i++) flakes.push(newFlake(first)); }
+  sx.clearRect(0, 0, W, H); sx.fillStyle = '#fff';
+  for(const f of flakes){
+    f.y += f.vy * d; f.ph += f.w; f.x += (Math.sin(f.ph) * f.amp + f.vx) * d;
+    if(f.y > H + 10 || f.x < -20 || f.x > W + 20){ Object.assign(f, newFlake(false)); f.dead = flakes.length > snowTarget; }
+    sx.globalAlpha = f.a; sx.beginPath(); sx.arc(f.x, f.y, f.r * d, 0, 7); sx.fill();
+  }
+  sx.globalAlpha = 1;
+  flakes = flakes.filter(f => !f.dead);
+  if(snowTarget === 0 && !flakes.length){ snowOn = false; sx.clearRect(0, 0, W, H); return; }
+  requestAnimationFrame(snowLoop);
+}
+
+function reindeer(cx, cls){
+  return `<g class="${cls}">
+    <g stroke="#6B4226" stroke-width="4" stroke-linecap="round"><line x1="${cx-16}" y1="62" x2="${cx-22}" y2="80"/><line x1="${cx-8}" y1="64" x2="${cx-4}" y2="80"/><line x1="${cx+10}" y1="64" x2="${cx+16}" y2="79"/><line x1="${cx+18}" y1="62" x2="${cx+26}" y2="76"/></g>
+    <ellipse cx="${cx}" cy="56" rx="25" ry="11" fill="#8B5E3C"/><ellipse cx="${cx-2}" cy="60" rx="15" ry="5" fill="#C89B6D"/>
+    <path d="M${cx+16} 50 Q${cx+22} 38 ${cx+26} 34" stroke="#8B5E3C" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <circle cx="${cx+28}" cy="32" r="8" fill="#8B5E3C"/><ellipse cx="${cx+35}" cy="35" rx="6" ry="4" fill="#A9774B"/><circle cx="${cx+40}" cy="34" r="2.5" fill="#2B1A10"/>
+    <circle cx="${cx+29}" cy="29" r="1.6" fill="#111"/>
+    <path d="M${cx+24} 25 l-5 -13 m2 6 l-7 -2 M${cx+29} 24 l3 -14 m-1 6 l6 -3" stroke="#D9B47A" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M${cx-25} 52 l-7 -5" stroke="#8B5E3C" stroke-width="4" stroke-linecap="round"/>
+    <path d="M${cx-10} 48 Q${cx} 44 ${cx+12} 48" stroke="#D7263D" stroke-width="3" fill="none"/><circle cx="${cx+2}" cy="46" r="2.5" fill="#F5C451"/></g>`;
+}
+function sleighSVG(){
+  return `<svg viewBox="0 0 380 100" aria-hidden="true">
+    <g class="twk" fill="#FFE8A3"><circle cx="6" cy="70" r="2"/><circle cx="20" cy="58" r="1.5"/><circle cx="14" cy="84" r="1.6"/><circle cx="32" cy="74" r="2.2"/><circle cx="2" cy="52" r="1.2"/></g>
+    <g class="bob2">
+      <path d="M120 44 L230 54 M120 44 L310 50" stroke="#D9B47A" stroke-width="1.6" fill="none"/>
+      <circle cx="56" cy="40" r="15" fill="#7A4B22"/><path d="M48 28 q8 -6 16 0" stroke="#F5C451" stroke-width="3" fill="none"/>
+      <circle cx="84" cy="40" r="15" fill="#C81E32"/><rect x="70" y="44" width="28" height="5" fill="#fff" rx="2"/>
+      <circle cx="84" cy="21" r="9" fill="#F2C6A0"/><ellipse cx="85" cy="28" rx="9" ry="8" fill="#fff"/><circle cx="87" cy="19" r="1.4" fill="#222"/>
+      <path d="M75 17 Q80 4 93 15 Z" fill="#C81E32"/><rect x="74" y="14" width="20" height="4" rx="2" fill="#fff"/><circle cx="72" cy="9" r="3.2" fill="#fff"/>
+      <path d="M40 38 C36 62 48 76 74 76 H130 C140 76 144 68 146 56 L148 44 H114 C108 44 104 50 92 50 H66 C56 50 52 38 40 38 Z" fill="#D7263D"/>
+      <path d="M44 42 C42 60 52 70 74 70 H128" stroke="#F5C451" stroke-width="2.5" fill="none"/>
+      <g stroke="#F5C451" stroke-width="4" fill="none" stroke-linecap="round"><path d="M34 90 H140 C156 90 160 82 157 74"/><line x1="62" y1="76" x2="62" y2="90"/><line x1="122" y1="76" x2="122" y2="90"/></g>
+    </g>
+    ${reindeer(232, 'bob')}${reindeer(312, 'bob2')}
+  </svg>`;
+}
+let sleighOn = false, sleighTimer = null, sleighFirst = null;
+function jingle(){ [1568, 1760, 1568, 2093, 1760].forEach((f, i) => setTimeout(() => beep(f, .09, 'triangle', .03), i * 110)); }
+function launchSleigh(){
+  if(!document.body.classList.contains('noel') || document.hidden) return;
+  const el = document.createElement('div'); el.className = 'sleigh'; el.innerHTML = sleighSVG();
+  el.style.top = (6 + Math.random() * 16) + 'vh';
+  document.body.appendChild(el); setTimeout(() => el.remove(), 10500);
+  if(location.hash.startsWith('#host')) jingle();
+}
+function startSleighs(on){
+  if(on === sleighOn) return; sleighOn = on;
+  clearInterval(sleighTimer); clearTimeout(sleighFirst);
+  if(on){ sleighFirst = setTimeout(launchSleigh, 2500); sleighTimer = setInterval(launchSleigh, 18000); }
+}
+function fx({theme = 'noel', snow = 0, sleigh = false, hills = false} = {}){
+  const noel = theme === 'noel';
+  document.body.classList.toggle('noel', noel);
+  document.body.classList.toggle('lobbyfx', !!hills);
+  setSnow(noel ? snow : 0);
+  startSleighs(noel && sleigh);
+}
+
+// Projectile (boule de neige / emoji) lancé par un joueur vers sa bulle sur le grand écran
+function spawnProjectile(id){
+  const noel = document.body.classList.contains('noel');
+  const target = [...document.querySelectorAll('#app [data-id]')].find(e => e.dataset.id === id);
+  let x1, y1;
+  if(target){ const r = target.getBoundingClientRect(); x1 = r.left + r.width / 2; y1 = r.top + r.height / 2; }
+  else { x1 = innerWidth * (.2 + Math.random() * .6); y1 = innerHeight * (.3 + Math.random() * .4); }
+  const x0 = innerWidth * Math.random(), y0 = innerHeight + 40;
+  const el = document.createElement('div'); el.className = 'proj';
+  el.innerHTML = noel ? '<div class="snowball"></div>' : ['🎉','🔥','👏','😂','🥳'][Math.floor(Math.random() * 5)];
+  document.body.appendChild(el);
+  const o = 16, xm = (x0 + x1) / 2, ym = Math.min(y0, y1) - 140;
+  const a = el.animate([
+    {transform:`translate(${x0-o}px,${y0-o}px) scale(.5) rotate(0deg)`},
+    {transform:`translate(${xm-o}px,${ym-o}px) scale(1.15) rotate(200deg)`},
+    {transform:`translate(${x1-o}px,${y1-o}px) scale(1) rotate(380deg)`}], {duration:700, easing:'cubic-bezier(.3,.6,.4,1)'});
+  a.onfinish = () => {
+    el.remove(); splat(x1, y1, noel); beep(260 + Math.random() * 200, .08, 'triangle', .05);
+    const b = BUB.get(id);
+    if(b){ b.vy = -5 - Math.random() * 3; b.vx += (Math.random() - .5) * 6; b.spin = (Math.random() - .5) * 40; }
+    else if(target) target.animate([{transform:'scale(1)'},{transform:'scale(1.25) rotate(-8deg)'},{transform:'scale(1)'}], {duration:420});
+  };
+}
+function splat(x, y, noel){
+  for(let i = 0; i < 12; i++){
+    const d = document.createElement('div'); d.className = 'proj';
+    d.innerHTML = `<div style="width:8px;height:8px;border-radius:50%;background:${noel ? '#fff' : COLORS[i % 6]}"></div>`;
+    document.body.appendChild(d);
+    const ang = Math.random() * 6.28, dist = 30 + Math.random() * 60;
+    d.animate([{transform:`translate(${x}px,${y}px)`, opacity:1}, {transform:`translate(${x + Math.cos(ang) * dist}px,${y + Math.sin(ang) * dist}px)`, opacity:0}], {duration:550, easing:'ease-out'}).onfinish = () => d.remove();
+  }
+}
+
+// Arène de la salle d'attente : les bulles des joueurs flottent et rebondissent
+const BUB = new Map(); let arenaRAF = null;
+function arenaHTML(players){
+  return `<div class="arena" id="arena">${players.map(p => { const b = BUB.get(p.id);
+    return `<div class="bubble" data-h="kick" data-id="${esc(p.id)}" title="Cliquer pour retirer" style="transform:${b ? `translate(${b.x}px,${b.y}px)` : 'translate(-9999px,0)'}"><span class="e">${p.emoji}</span>${esc(p.name)}</div>`; }).join('')}
+    ${players.length ? '' : '<div class="empty">En attente des joueurs...</div>'}</div>`;
+}
+function runArena(){
+  cancelAnimationFrame(arenaRAF);
+  const A = $('#arena'); if(!A) return;
+  let t = 0;
+  const step = () => {
+    if(!A.isConnected) return;
+    t++;
+    const W = A.clientWidth, H = A.clientHeight;
+    const items = [...A.querySelectorAll('.bubble')].map(el => {
+      const id = el.dataset.id; let b = BUB.get(id);
+      if(!b){ b = {x: W / 2 - 60 + (Math.random() - .5) * W * .5, y: -60, vx: (Math.random() - .5) * 3, vy: 3, rot: 0, spin: 0, enter: true, ph: Math.random() * 6}; BUB.set(id, b); beep(990, .06, 'sine', .04); }
+      if(b.el !== el){ b.el = el; b.w = el.offsetWidth; b.h = el.offsetHeight; }
+      return b;
+    });
+    for(const b of items){
+      b.vx += (Math.random() - .5) * .12; b.vy += (Math.random() - .5) * .12;
+      if(b.enter){ b.vy += .25; if(b.y > 0) b.enter = false; }
+      const sp = Math.hypot(b.vx, b.vy);
+      if(!b.enter && sp > 1.4){ b.vx *= .97; b.vy *= .97; }
+      if(sp < .35){ b.vx *= 1.1; b.vy *= 1.1; }
+      b.x += b.vx; b.y += b.vy;
+      if(b.x < 0){ b.x = 0; b.vx = Math.abs(b.vx); }
+      if(b.x > W - b.w){ b.x = W - b.w; b.vx = -Math.abs(b.vx); }
+      if(b.y > H - b.h){ b.y = H - b.h; b.vy = -Math.abs(b.vy) * .8; }
+      if(!b.enter && b.y < 0){ b.y = 0; b.vy = Math.abs(b.vy); }
+    }
+    for(let i = 0; i < items.length; i++) for(let j = i + 1; j < items.length; j++){
+      const a = items[i], c = items[j];
+      const dx = (c.x + c.w / 2) - (a.x + a.w / 2), dy = (c.y + c.h / 2) - (a.y + a.h / 2);
+      const ox = (a.w + c.w) / 2 - Math.abs(dx), oy = (a.h + c.h) / 2 - Math.abs(dy);
+      if(ox > 0 && oy > 0){
+        if(ox < oy){ const s = Math.sign(dx) || 1; a.x -= s * ox / 2; c.x += s * ox / 2; const v = a.vx; a.vx = c.vx; c.vx = v; }
+        else { const s = Math.sign(dy) || 1; a.y -= s * oy / 2; c.y += s * oy / 2; const v = a.vy; a.vy = c.vy; c.vy = v; }
+      }
+    }
+    for(const b of items){
+      b.spin *= .94;
+      b.rot = Math.sin(t / 30 + b.ph) * 5 + b.spin;
+      b.el.style.transform = `translate(${b.x.toFixed(1)}px,${b.y.toFixed(1)}px) rotate(${b.rot.toFixed(1)}deg)`;
+    }
+    arenaRAF = requestAnimationFrame(step);
+  };
+  arenaRAF = requestAnimationFrame(step);
+}
+
 function countUp(el, from, to, dur = 900){
   const t0 = performance.now();
   const step = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
@@ -377,8 +580,10 @@ function demoQuiz(){
 /* ---------- Bibliothèque de quiz (localStorage de ce navigateur) ---------- */
 function normalizeQuiz(d){
   d.id = d.id || uid(); d.title = d.title || 'Quiz sans titre';
+  d.theme = d.theme || 'noel';
+  d.defaults = {time:20, points:1000, speed:true, ...(d.defaults || {})};
   d.teams = d.teams || {enabled:false, list: TEAM_PRESETS.slice(0,2).map(t => ({id:uid(), ...t}))};
-  d.questions = (d.questions || []).map(q => ({...newQuestion(q.type || 'qcm'), ...q, id: q.id || uid(), choices: q.choices || [], correct: q.correct || []}));
+  d.questions = (d.questions || []).map(q => ({...newQuestion(q.type || 'qcm', d.defaults), ...q, id: q.id || uid(), choices: q.choices || [], correct: q.correct || []}));
   d.updatedAt = d.updatedAt || Date.now();
   return d;
 }
@@ -475,6 +680,7 @@ function stopTimers(){ tickers.forEach(clearInterval); tickers = []; }
 
 /* ---------------- Accueil ---------------- */
 function renderHome(){
+  fx({theme: QUIZ.theme, snow: .7, sleigh: true, hills: true});
   app.innerHTML = `<div class="center">
     <div class="pill">🎉 Sans compte, juste un lien</div>
     <h1>Quiz <span style="color:var(--warm)">Party</span></h1>
@@ -486,6 +692,7 @@ function renderHome(){
 }
 
 function renderJoinCode(){
+  fx({theme: 'noel', snow: .6});
   app.innerHTML = `<div class="center">
     <div class="logo">Quiz <b>Party</b></div>
     <h2>Entre le code de la partie</h2>
@@ -512,6 +719,7 @@ function startHostMode(){
 
 /* ---------- Éditeur ---------- */
 function renderEditor(saved){
+  fx({theme: QUIZ.theme, snow: .35});
   const t = QUIZ.teams;
   app.innerHTML = `
   <div class="topbar"><a href="#" class="logo">Quiz <b>Party</b></a>
@@ -532,6 +740,16 @@ function renderEditor(saved){
       </div>
       ${t.enabled ? `<div class="grid2">${t.list.map((tm,i) => `<div><span class="lbl" style="color:${tm.color}">Équipe ${i+1}</span><input data-team="${i}" value="${esc(tm.name)}"></div>`).join('')}</div>
       <p class="type-help">Score d'équipe = moyenne des joueurs, pour que les équipes inégales restent équitables.</p>` : ''}
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <span class="lbl">Réglages pour toutes les questions</span>
+      <div class="grid2">
+        <div><span class="lbl">Temps</span><select data-g="time">${[5,10,15,20,30,45,60,90].map(v => `<option value="${v}" ${QUIZ.defaults.time === v ? 'selected':''}>${v} s</option>`).join('')}</select></div>
+        <div><span class="lbl">Points de base</span><select data-g="points">${[250,500,800,1000,1500,2000].map(v => `<option value="${v}" ${QUIZ.defaults.points === v ? 'selected':''}>${v}</option>`).join('')}</select></div>
+        <div style="display:flex;align-items:flex-end;padding-bottom:10px"><label class="toggle"><input type="checkbox" data-g="speed" ${QUIZ.defaults.speed ? 'checked':''}> ⚡ Bonus vitesse</label></div>
+        <div><span class="lbl">Ambiance</span><select data-f="theme"><option value="noel" ${QUIZ.theme === 'noel' ? 'selected':''}>🎄 Noël</option><option value="classique" ${QUIZ.theme === 'classique' ? 'selected':''}>✨ Classique</option></select></div>
+      </div>
+      <p class="type-help">Changer un réglage ici l'applique à toutes les questions. Tu peux ensuite modifier une question à part : son réglage passe en <span style="color:var(--warm)">orange</span> et les autres ne bougent pas.</p>
     </div>
     <div class="row" style="margin-bottom:12px"><h2 class="grow">${QUIZ.questions.length} question${QUIZ.questions.length > 1 ? 's' : ''}</h2></div>
     <div id="qlist">${QUIZ.questions.map(editorCard).join('')}</div>
@@ -563,6 +781,18 @@ function renderEditor(saved){
   };
   app.oninput = app.onchange = e => {
     const el = e.target, i = +el.dataset.i, f = el.dataset.f;
+    if(el.dataset.g && e.type === 'change'){
+      const g = el.dataset.g, v = g === 'speed' ? el.checked : +el.value;
+      QUIZ.defaults[g] = v; let n = 0;
+      QUIZ.questions.forEach(q => {
+        if(g === 'points' && q.type === 'sondage') return;
+        if(g === 'speed' && (q.type === 'sondage' || q.type === 'estimation')) return;
+        q[g] = v; n++;
+      });
+      saveQuiz(); renderEditor(saved); toast(`Appliqué à ${n} question${n > 1 ? 's' : ''} ✅`); return;
+    }
+    if(el.dataset.g) return;
+    if(f === 'theme' && e.type === 'change'){ QUIZ.theme = el.value; saveQuiz(); return renderEditor(saved); }
     if(el.dataset.team != null){ QUIZ.teams.list[+el.dataset.team].name = el.value; return saveQuiz(); }
     if(f === 'title'){ QUIZ.title = el.value; return saveQuiz(); }
     if(f === 'teams' && e.type === 'change'){ QUIZ.teams.enabled = el.checked; saveQuiz(); return renderEditor(saved); }
@@ -573,9 +803,9 @@ function renderEditor(saved){
     if(f === 'text') q.text = el.value;
     if(f === 'choice') q.choices[+el.dataset.c] = el.value;
     if(f === 'correct'){ const c = +el.dataset.c; if(q.type === 'vf') q.correct = [c]; else q.correct = el.checked ? [...new Set([...q.correct, c])] : q.correct.filter(x => x !== c); }
-    if(f === 'time') q.time = +el.value;
-    if(f === 'points') q.points = +el.value;
-    if(f === 'speed') q.speed = el.checked;
+    if(['time','points','speed'].includes(f)){ if(e.type !== 'change') return;
+      q[f] = f === 'speed' ? el.checked : +el.value; saveQuiz();
+      const card = el.closest('.qcard'); if(card){ const y = scrollY; card.outerHTML = editorCard(q, i); scrollTo(0, y); } return; }
     if(f === 'answer') q.answer = el.value === '' ? '' : +el.value;
     if(f === 'unit') q.unit = el.value;
     saveQuiz();
@@ -588,13 +818,15 @@ function renderEditor(saved){
   };
 }
 
-function newQuestion(type){
-  const base = {id:uid(), type, text:'', choices:['',''], correct:[], time:20, points:1000, speed:true};
-  if(type === 'vf') Object.assign(base, {choices:[], correct:[0], time:15});
+function curDefaults(){ try{ return QUIZ && QUIZ.defaults; }catch(e){ return null; } } // try : QUIZ peut ne pas encore exister
+function newQuestion(type, D){
+  D = D || curDefaults() || {time:20, points:1000, speed:true};
+  const base = {id:uid(), type, text:'', choices:['',''], correct:[], time:D.time, points:D.points, speed:D.speed};
+  if(type === 'vf') Object.assign(base, {choices:[], correct:[0]});
   if(type === 'qcm') Object.assign(base, {choices:['','','',''], correct:[0]});
-  if(type === 'majorite' || type === 'minorite') Object.assign(base, {choices:['','',''], points:500, speed:false});
+  if(type === 'majorite' || type === 'minorite') Object.assign(base, {choices:['','','']});
   if(type === 'sondage') Object.assign(base, {choices:['','',''], points:0, speed:false});
-  if(type === 'estimation') Object.assign(base, {choices:[], answer:'', unit:'', speed:false, time:25});
+  if(type === 'estimation') Object.assign(base, {choices:[], answer:'', unit:'', speed:false});
   return base;
 }
 
@@ -624,9 +856,9 @@ function editorCard(q, i){
     <p class="type-help">${T.help}</p>
     ${choiceRows}
     <div class="grid2">
-      <div><span class="lbl">Temps</span><select data-f="time" data-i="${i}">${[5,10,15,20,30,45,60,90].map(s => `<option value="${s}" ${q.time === s ? 'selected':''}>${s} s</option>`).join('')}</select></div>
-      ${q.type !== 'sondage' ? `<div><span class="lbl">Points</span><select data-f="points" data-i="${i}">${[0,250,500,800,1000,1500,2000].map(p => `<option value="${p}" ${q.points === p ? 'selected':''}>${p}</option>`).join('')}</select></div>` : ''}
-      ${q.type !== 'sondage' && q.type !== 'estimation' ? `<div style="display:flex;align-items:flex-end;padding-bottom:10px"><label class="toggle"><input type="checkbox" data-f="speed" data-i="${i}" ${q.speed ? 'checked':''}> ⚡ Bonus vitesse</label></div>` : ''}
+      <div><span class="lbl">Temps</span><select data-f="time" data-i="${i}" class="${q.time !== QUIZ.defaults.time ? 'custom' : ''}">${[5,10,15,20,30,45,60,90].map(s => `<option value="${s}" ${q.time === s ? 'selected':''}>${s} s</option>`).join('')}</select></div>
+      ${q.type !== 'sondage' ? `<div><span class="lbl">Points</span><select data-f="points" data-i="${i}" class="${q.points !== QUIZ.defaults.points ? 'custom' : ''}">${[0,250,500,800,1000,1500,2000].map(p => `<option value="${p}" ${q.points === p ? 'selected':''}>${p}</option>`).join('')}</select></div>` : ''}
+      ${q.type !== 'sondage' && q.type !== 'estimation' ? `<div style="display:flex;align-items:flex-end;padding-bottom:10px"><label class="toggle" style="${q.speed !== QUIZ.defaults.speed ? 'color:var(--warm)' : ''}"><input type="checkbox" data-f="speed" data-i="${i}" ${q.speed ? 'checked':''}> ⚡ Bonus vitesse</label></div>` : ''}
     </div></div>`;
 }
 
@@ -828,6 +1060,13 @@ function hostOnMsg(m){
   if(m.kind === 'hello') return transport.send(publicState());
   if(m.kind === 'join') return addPlayer(m);
   if(m.kind === 'answer') return handleAnswer(m.id, m.qi, m.value);
+  if(m.kind === 'react') return onReact(m.id);
+}
+const lastReact = {};
+function onReact(id){
+  if(!G.players[id] || !['lobby','leaderboard','podium'].includes(G.phase)) return;
+  const now = Date.now(); if(now - (lastReact[id] || 0) < 300) return; lastReact[id] = now;
+  spawnProjectile(id);
 }
 
 function addPlayer({id, name, emoji, team}){
@@ -871,7 +1110,7 @@ function publicState(){
   const q = curQ();
   return {
     from:'host', kind:'state', room:G.room, title:G.quiz.title, phase:G.phase, qi:G.qi,
-    total:G.quiz.questions.length, hostNow:Date.now(), deadline:G.deadline, readyEnd:G.readyEnd,
+    total:G.quiz.questions.length, theme:G.quiz.theme || 'noel', hostNow:Date.now(), deadline:G.deadline, readyEnd:G.readyEnd,
     teams: G.quiz.teams.enabled ? G.quiz.teams.list : null,
     q: q && G.phase !== 'lobby' ? {type:q.type, text:q.text, choices:choicesOf(q), time:q.time, points:q.points, unit:q.unit || ''} : null,
     answered: Object.keys(G.answers),
@@ -1023,6 +1262,9 @@ function renderHost(force = true){
   if(P === 'leaderboard') body = hostLeaderboard();
   if(P === 'podium') body = hostPodium();
   app.innerHTML = top + body;
+  const th = G.quiz.theme || 'noel';
+  fx({theme: th, snow: {lobby:1, ready:.6, question:.2, reveal:.4, leaderboard:.5, podium:1}[P] ?? .3, sleigh: P === 'lobby' || P === 'podium', hills: P === 'lobby' || P === 'podium'});
+  if(P === 'lobby') runArena();
   app.onclick = app.oninput = app.onchange = null;
   $('#mute').onclick = () => { muted = !muted; store.set('quiz-muted', muted); $('#mute').textContent = muted ? '🔇' : '🔊'; };
   $('#quit').onclick = () => { if(confirm('Quitter la partie ? Les joueurs seront déconnectés.')){ G.phase = 'podium'; transport.send(publicState()); store.del('quiz-host-game'); G = null; transport.close(); transport = null; stopTimers(); location.hash = 'host'; route(); } };
@@ -1048,7 +1290,7 @@ function patchHost(){
 }
 
 function ptag(p, kick = true){
-  return `<span class="ptag" ${kick ? `data-h="kick" data-id="${esc(p.id)}" title="Cliquer pour retirer"` : ''}><span style="font-size:20px">${p.emoji}</span>${esc(p.name)}</span>`;
+  return `<span class="ptag wiggle" style="animation-delay:0s,${(-Math.random()*2.4).toFixed(2)}s" ${kick ? `data-h="kick" data-id="${esc(p.id)}" title="Cliquer pour retirer"` : ''}><span style="font-size:20px">${p.emoji}</span>${esc(p.name)}</span>`;
 }
 
 function hostLobby(){
@@ -1057,9 +1299,9 @@ function hostLobby(){
   const list = T.enabled
     ? `<div class="teams-lobby">${T.list.map(t => { const m = players.filter(p => p.team === t.id);
         return `<div class="team-col" style="border-color:${t.color};background:${t.color}22"><h3><span>${esc(t.name)}</span><span class="mute">${m.length}</span></h3>${m.map(p => ptag(p)).join('') || '<span class="mute">Personne encore</span>'}</div>`; }).join('')}</div>`
-    : `<div class="players">${players.map(p => ptag(p)).join('') || '<p class="mute">En attente des joueurs...</p>'}</div>`;
+    : arenaHTML(players);
   return `<div class="center">
-    <p class="mute" style="font-size:18px">${esc(G.quiz.title)}</p>
+    <p class="mute" style="font-size:18px">${G.quiz.theme === 'noel' ? '🎄 ' : ''}${esc(G.quiz.title)}</p>
     <div class="row" style="justify-content:center;gap:28px">
       ${qrSVG(joinLink())}
       <div style="text-align:left"><p style="font-size:18px">Scanne le QR code ou entre le code</p><div class="code">${esc(G.room)}</div>
@@ -1071,6 +1313,7 @@ function hostLobby(){
       <button class="btn ghost sm" data-h="bots">🤖 +5 bots de test</button>
       ${T.enabled ? `<button class="btn ghost sm" data-h="balance">⚖️ Équilibrer les équipes</button>` : ''}
     </div>
+    <p class="mute" style="font-size:14px;margin-top:-6px">${players.length ? `${G.quiz.theme === 'noel' ? '❄️ Les joueurs peuvent lancer des boules de neige depuis leur téléphone' : '🎉 Les joueurs peuvent envoyer des confettis depuis leur téléphone'}` : ''}</p>
     ${list}
     <button class="btn big warm" data-h="primary" ${players.length ? '' : 'disabled'}>C'est parti ! <span class="kbd">Espace</span></button>
   </div>`;
@@ -1139,7 +1382,7 @@ function hostLeaderboard(){
     <div class="q-top"><h2>🏆 Classement</h2><button class="btn ${last ? 'warm' : ''}" data-h="primary">${last ? 'Podium final 🎉' : 'Question suivante ➜'} <span class="kbd">Espace</span></button></div>
     ${TS ? `<div class="team-bars">${TS.map(t => `<div class="team-bar"><div class="tb-name" style="color:${t.color}">${esc(t.name)}</div><div class="tb-track"><div class="tb-fill" style="background:${t.color}" data-w="${t.score/maxT*100}"></div></div><div class="tb-sc">${fmt(t.score)}</div></div>`).join('')}</div>` : ''}
     <div class="lb" style="height:${R.length * 72}px">${R.map(p => `
-      <div class="lb-row ${p.rank === 1 ? 'top1' : ''}" data-rank="${p.rank}" data-prev="${Math.min(p.prevRank || p.rank, 9)}" style="top:${((Math.min(p.prevRank || p.rank, 9)) - 1) * 72}px">
+      <div class="lb-row ${p.rank === 1 ? 'top1' : ''}" data-id="${esc(p.id)}" data-rank="${p.rank}" data-prev="${Math.min(p.prevRank || p.rank, 9)}" style="top:${((Math.min(p.prevRank || p.rank, 9)) - 1) * 72}px">
         <span class="rk">${p.rank}</span><span class="em">${p.emoji}</span><span class="nm">${esc(p.name)}${p.streak >= 2 ? ` <span title="Série">🔥${p.streak}</span>` : ''}</span>
         <span class="gain">${p.lastGain ? '+' + fmt(p.lastGain) : ''}</span><span class="sc" data-from="${p.score - p.lastGain}" data-to="${p.score}">${fmt(p.score - p.lastGain)}</span></div>`).join('')}</div>
   </div>`;
@@ -1211,6 +1454,7 @@ function startPlayer(code){
     if(prevPhase !== S.phase + S.qi && S.phase === 'reveal'){ const me = S.players.find(p => p.id === ME.id); if(me && me.lastOk === true && navigator.vibrate) navigator.vibrate([60,40,60]); }
     renderPlayer();
   });
+  fx({theme:'noel', snow:.5});
   app.innerHTML = `<div class="center"><div class="logo">Quiz <b>Party</b></div><h2>Connexion à ${esc(code)}...</h2><p class="mute" id="wait">Recherche de la partie</p></div>`;
   transport.send({kind:'hello'});
   if(ME.joined) transport.send({kind:'join', ...ME});
@@ -1237,9 +1481,10 @@ function renderPlayer(){
     const team = S.teams && S.teams.find(t => t.id === meP.team);
     body = `<div class="p-feedback" style="background:rgba(255,255,255,.05)"><div class="emo">${meP.emoji}</div><div class="big">Tu es dans la partie !</div>
       ${team ? `<div class="pill" style="border-color:${team.color};color:${team.color};font-size:16px">${esc(team.name)}</div>` : ''}
-      <p class="mute">${S.players.length} joueur${S.players.length > 1 ? 's' : ''} connecté${S.players.length > 1 ? 's' : ''}. Regarde le grand écran, ça va commencer.</p></div>`;
+      <p class="mute">${S.players.length} joueur${S.players.length > 1 ? 's' : ''} connecté${S.players.length > 1 ? 's' : ''}. Regarde le grand écran, ça va commencer.</p>
+      ${reactBlock()}</div>`;
   }
-  if(P === 'ready') body = `<div class="p-feedback" style="background:rgba(255,255,255,.05)"><p class="mute">Question ${S.qi+1} / ${S.total}</p><div class="pill">${TYPES[S.q.type].icon} ${TYPES[S.q.type].label}</div><div class="big">Prépare-toi...</div><div class="emo" style="animation:pulse 1s infinite">⏳</div></div>`;
+  if(P === 'ready') body = `<div class="p-feedback" style="background:rgba(255,255,255,.05)"><p class="mute">Question ${S.qi+1} / ${S.total}</p><div class="pill">${TYPES[S.q.type].icon} ${TYPES[S.q.type].label}</div><div class="emo" style="animation:pulse 1s infinite">⏳</div><div class="p-q" style="font-size:22px">${esc(S.q.text)}</div><p class="mute">Prépare-toi...</p></div>`;
   if(P === 'question'){
     if(answeredNow){
       const t = myAnswer && myAnswer.qi === S.qi ? myAnswer.ms : null;
@@ -1254,16 +1499,20 @@ function renderPlayer(){
         <div class="p-tiles">${S.q.choices.map((c,i) => `<button class="p-tile" data-v="${i}" style="background:${COLORS[i]};animation-delay:${i*50}ms"><span class="shape">${SHAPES[i]}</span><span>${esc(c)}</span></button>`).join('')}</div>`;
     }
   }
-  if(P === 'reveal' || P === 'leaderboard') body = playerFeedback(meP);
+  if(P === 'reveal') body = playerReveal(meP);
+  if(P === 'leaderboard') body = playerBoard(meP);
   if(P === 'podium'){
     const top = meP.rank <= 3;
     body = `<div class="p-feedback" style="background:${top ? 'linear-gradient(160deg,#F5C451,#D08A1E)' : 'rgba(255,255,255,.06)'}">
       <div class="emo">${['🥇','🥈','🥉'][meP.rank-1] || '🎈'}</div><div class="big">${ord(meP.rank)} sur ${S.players.length}</div><div class="pts">${fmt(meP.score)} pts</div>
-      ${S.teamScores ? `<p>Équipe gagnante : <b>${esc(S.teamScores[0].name)}</b></p>` : ''}<p style="opacity:.8">Merci d'avoir joué !</p></div>`;
+      ${S.teamScores ? `<p>Équipe gagnante : <b>${esc(S.teamScores[0].name)}</b></p>` : ''}<p style="opacity:.8">Merci d'avoir joué !</p>${reactBlock()}</div>`;
     if(top) setTimeout(() => confetti(140), 300);
   }
   app.innerHTML = `<div class="p-wrap">${head}${body}</div>`;
+  fx({theme: S.theme, snow: {lobby:.8, podium:1, ready:.4}[P] ?? .25, sleigh: P === 'lobby' || P === 'podium'});
+  requestAnimationFrame(() => setTimeout(() => document.querySelectorAll('.p-res .bar').forEach(b => b.style.width = b.dataset.w + '%'), 80));
   app.onclick = e => {
+    if(e.target.closest('#reactBtn')) return sendReact(e.target.closest('#reactBtn'));
     const b = e.target.closest('.p-tile'); if(b) sendAnswer(+b.dataset.v);
     if(e.target.id === 'estGo') sendEst();
   };
@@ -1282,25 +1531,70 @@ function sendAnswer(v){
   playerKey = ''; renderPlayer();
 }
 
-function playerFeedback(me){
+function reactBlock(){
+  const noel = S.theme === 'noel';
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:6px"><button class="react-btn" id="reactBtn" aria-label="Lancer">${noel ? '❄️' : '🎉'}</button>
+    <p class="mute" style="font-size:14px;text-align:center">Touche pour lancer ${noel ? 'une boule de neige' : 'des confettis'} sur le grand écran</p></div>`;
+}
+let lastSent = 0;
+function sendReact(btn){
+  const now = Date.now(); if(now - lastSent < 300) return; lastSent = now;
+  transport.send({kind:'react', id:ME.id});
+  navigator.vibrate && navigator.vibrate(15);
+  btn.animate([{transform:'scale(1)'},{transform:'scale(.82) rotate(-12deg)'},{transform:'scale(1.08)'},{transform:'scale(1)'}], {duration:320});
+}
+
+function revealVerdict(me){
   const R = S.reveal, t = R && R.type, g = R && R.gains[ME.id];
-  let bg = 'rgba(255,255,255,.06)', emo = '⏰', title = 'Trop tard !', sub = '';
+  let bg = 'rgba(255,255,255,.08)', emo = '⏰', title = 'Trop tard !';
   if(g){
-    if(t === 'sondage'){ bg = 'linear-gradient(160deg,#6366F1,#4338CA)'; emo = '📊'; title = 'Vote enregistré';
-      const tot = R.counts.reduce((a,b) => a+b, 0) || 1; sub = `${Math.round(R.counts[g.value] / tot * 100)} % ont voté comme toi`; }
-    else if(g.ok){ bg = 'linear-gradient(160deg,#22C55E,#15803D)';
-      [emo, title] = {qcm:['🎉','Bonne réponse !'], vf:['🎉','Bien vu !'], majorite:['🐑','Tu as suivi la foule !'], minorite:['🦄','Esprit rebelle, bien joué !'], estimation:['🎯','Le plus proche !']}[t]; }
-    else { bg = 'linear-gradient(160deg,#EF4444,#991B1B)';
+    if(t === 'sondage'){ bg = 'linear-gradient(135deg,#6366F1,#4338CA)'; emo = '📊'; title = 'Vote enregistré'; }
+    else if(g.ok){ bg = 'linear-gradient(135deg,#22C55E,#15803D)';
+      [emo, title] = {qcm:['🎉','Bonne réponse !'], vf:['🎉','Bien vu !'], majorite:['🐑','Tu as suivi la foule !'], minorite:['🦄','Esprit rebelle !'], estimation:['🎯','Le plus proche !']}[t]; }
+    else { bg = 'linear-gradient(135deg,#EF4444,#991B1B)';
       [emo, title] = {qcm:['😬','Raté...'], vf:['😬','Raté...'], majorite:['🙃','À contre-courant'], minorite:['🐑','Trop mainstream'], estimation:['📏','Pas loin...']}[t];
-      if(t === 'estimation'){ bg = g.pts > 0 ? 'linear-gradient(160deg,#F5A524,#B45309)' : bg; sub = `Réponse : ${fmt(R.target)} ${esc(R.unit)} · écart ${fmt(g.diff)}`; } }
+      if(t === 'estimation' && g.pts > 0) bg = 'linear-gradient(135deg,#F5A524,#B45309)'; }
   }
-  const pts = me.lastGain ? `<div class="pts">+${fmt(me.lastGain)}</div>` : (t !== 'sondage' ? '<div class="pts" style="opacity:.6">+0</div>' : '');
-  return `<div class="p-feedback" style="background:${bg}"><div class="emo">${emo}</div><div class="big">${title}</div>${pts}
-    ${me.streak >= 2 ? `<div class="pill">🔥 Série de ${me.streak}</div>` : ''}
-    ${sub ? `<p>${sub}</p>` : ''}<p style="opacity:.85">Tu es ${ord(me.rank)} sur ${S.players.length}</p></div>`;
+  return {bg, emo, title, g, R, t};
+}
+
+function playerReveal(me){
+  const {bg, emo, title, g, R, t} = revealVerdict(me);
+  const pts = t === 'sondage' ? '' : `<div class="pts">+${fmt(me.lastGain || 0)}</div>`;
+  const banner = `<div class="p-banner" style="background:${bg}"><span class="emo">${emo}</span>
+    <div><div class="t">${title}</div><div style="opacity:.9;font-size:14px">${ord(me.rank)} sur ${S.players.length}${me.streak >= 2 ? ` · 🔥 série de ${me.streak}` : ''}</div></div>${pts}</div>`;
+  let detail = '';
+  if(t === 'estimation'){
+    const nameOf = id => { const p = S.players.find(x => x.id === id); return p ? `${p.emoji} ${esc(p.name)}` : '?'; };
+    detail = `<div class="card" style="text-align:center;padding:16px"><div class="mute">Bonne réponse</div>
+        <div style="font-size:44px;font-weight:700;line-height:1.1">${fmt(R.target)} ${esc(R.unit)}</div>
+        ${g ? `<div class="mute" style="margin-top:6px">Ta réponse : <b style="color:#fff">${fmt(g.value)}</b> · écart ${fmt(g.diff)}</div>` : ''}</div>
+      <div class="mini-lb">${R.closest.slice(0,3).map((c,i) => `<div class="r ${c.pid === ME.id ? 'me' : ''}"><span>${['🥇','🥈','🥉'][i]}</span><span style="flex:1">${nameOf(c.pid)}</span><span>${fmt(c.v)}</span></div>`).join('')}</div>`;
+  } else {
+    const tot = Math.max(1, R.counts.reduce((a,b) => a + b, 0));
+    const note = {majorite:'La réponse la plus votée gagne', minorite: R.winners.length ? 'La réponse la moins votée gagne' : 'Pas de minorité cette fois', sondage:'Résultats du vote'}[t] || '';
+    detail = `<div class="p-res">${S.q.choices.map((c,i) => {
+        const win = R.winners.includes(i), dim = t !== 'sondage' && !win, mine = g && g.value === i;
+        return `<div class="r ${win ? 'win' : ''} ${dim ? 'dim' : ''}" style="background:${COLORS[i]};animation-delay:${i*60}ms"><div class="bar" data-w="${(R.counts[i] / tot * 100).toFixed(1)}"></div>
+          <span>${SHAPES[i]}</span><span style="flex:1">${esc(c)}${mine ? ' <b>👈 toi</b>' : ''}</span><span>${win && t !== 'sondage' ? '✓ ' : ''}${R.counts[i]}</span></div>`; }).join('')}</div>
+      ${note ? `<p class="p-note">${note}</p>` : ''}`;
+  }
+  return banner + `<div class="p-q">${esc(S.q.text)}</div>` + detail;
+}
+
+function playerBoard(me){
+  const top = S.players.slice(0, 5), inTop = top.some(p => p.id === ME.id);
+  const row = p => `<div class="r ${p.id === ME.id ? 'me' : ''}"><span style="width:28px">${p.rank}</span><span>${p.emoji}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</span><span>${fmt(p.score)}</span></div>`;
+  const team = S.teamScores && S.teamScores.map((t,i) => `<div class="r"><span style="width:28px">${i+1}</span><span style="flex:1;color:${t.color}">${esc(t.name)}</span><span>${fmt(t.score)}</span></div>`).join('');
+  return `<div class="p-banner" style="background:linear-gradient(135deg,#4F46E5,#312E81)"><span class="emo">🏆</span>
+      <div><div class="t">Tu es ${ord(me.rank)}</div><div style="opacity:.9;font-size:14px">sur ${S.players.length} joueurs</div></div><div class="pts">${fmt(me.score)}</div></div>
+    <div class="mini-lb">${top.map(row).join('')}${inTop ? '' : `<div class="p-note">⋯</div>${row(me)}`}</div>
+    ${team ? `<p class="lbl" style="margin-top:6px">Équipes</p><div class="mini-lb">${team}</div>` : ''}
+    ${reactBlock()}`;
 }
 
 function playerJoin(){
+  fx({theme: S.theme, snow: .6});
   const teams = S.teams;
   if(teams && !teams.some(t => t.id === ME.team)) ME.team = null;
   app.innerHTML = `<div class="center">
