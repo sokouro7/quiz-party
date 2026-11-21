@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Quiz Party</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -162,6 +162,8 @@ h2{font-size:clamp(22px,3vw,32px);font-weight:700;letter-spacing:-.02em}
 #confetti{position:fixed;inset:0;pointer-events:none;z-index:50}
 .kbd{font-size:12px;padding:2px 6px;border-radius:6px;border:1px solid var(--line);color:var(--mute)}
 @media (max-width:700px){
+  body{background-attachment:scroll}
+  .center{justify-content:flex-start;padding-top:32px}
   .tiles{grid-template-columns:1fr}
   .q-mid{gap:20px}
   .timer{width:96px;height:96px}
@@ -975,6 +977,8 @@ function renderPlayer(){
   const answeredNow = S.answered.includes(ME.id) || (myAnswer && myAnswer.qi === S.qi);
   const key = !inGame ? 'join' + JSON.stringify(S.teams) : [S.phase, S.qi, answeredNow, S.phase === 'lobby' ? S.players.length + (meP.team || '') : ''].join('|');
   if(key === playerKey) return;
+  const typing = document.activeElement && ['nm','est'].includes(document.activeElement.id);
+  if(typing && key.startsWith('join') && playerKey.startsWith('join')) return;
   playerKey = key;
   if(!inGame) return playerJoin();
   const head = `<div class="p-head"><span class="pill">${meP.emoji} ${esc(meP.name)}</span><span class="pill net" id="net"></span><span class="pill">${fmt(meP.score)} pts</span></div>`;
@@ -994,7 +998,7 @@ function renderPlayer(){
         ${t != null ? `<p class="mute">⚡ en ${(t/1000).toFixed(1).replace('.',',')} s</p>` : ''}<p class="mute">On attend les autres...</p></div>`;
     } else if(S.q.type === 'estimation'){
       body = `<div class="mini-timer"><div></div></div><p style="font-weight:700;font-size:20px;text-align:center">${esc(S.q.text)}</p>
-        <div class="p-feedback" style="background:rgba(255,255,255,.05);flex:0;padding:20px"><input id="est" type="number" inputmode="decimal" step="any" placeholder="Ton estimation" style="font-size:32px;text-align:center;font-weight:700">
+        <div class="p-feedback" style="background:rgba(255,255,255,.05);flex:0;padding:20px"><input id="est" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="Ton estimation" style="font-size:32px;text-align:center;font-weight:700">
         ${S.q.unit ? `<p class="mute">en ${esc(S.q.unit)}</p>` : ''}<button class="btn big warm" id="estGo" style="width:100%">Valider</button></div>`;
     } else {
       body = `<div class="mini-timer"><div></div></div><p style="font-weight:700;font-size:18px;text-align:center">${esc(S.q.text)}</p>
@@ -1015,10 +1019,10 @@ function renderPlayer(){
     if(e.target.id === 'estGo') sendEst();
   };
   setNet(NET);
-  const est = $('#est'); if(est){ est.focus(); est.onkeydown = e => e.key === 'Enter' && sendEst(); }
+  const est = $('#est'); if(est){ est.onkeydown = e => e.key === 'Enter' && sendEst(); }
   updateTimers();
 }
-function sendEst(){ const v = $('#est').value; if(v === '' || !isFinite(+v)) return toast('Entre un nombre'); sendAnswer(+v); }
+function sendEst(){ const v = $('#est').value.replace(',', '.').replace(/\s/g, ''); if(v === '' || !isFinite(+v)) return toast('Entre un nombre'); sendAnswer(+v); }
 function sendAnswer(v){
   if(S.phase !== 'question' || (myAnswer && myAnswer.qi === S.qi)) return;
   const now = Date.now() + clockOffset;
@@ -1054,15 +1058,17 @@ function playerJoin(){
     <div class="logo">Quiz <b>Party</b></div><p class="mute">${esc(S.title)} · ${esc(S.room)}</p>
     <span class="emoji-pick" id="emo" title="Changer d'avatar">${ME.emoji}</span>
     <p class="mute" style="font-size:13px;margin-top:-10px">Touche l'avatar pour en changer</p>
-    <input id="nm" maxlength="18" placeholder="Ton pseudo" value="${esc(ME.name)}" style="max-width:320px;text-align:center;font-size:22px;font-weight:600">
-    ${teams ? `<div class="team-pick" style="max-width:360px">${teams.map(t => `<button data-t="${t.id}" class="${ME.team === t.id ? 'sel' : ''}" style="border-color:${t.color};${ME.team === t.id ? `background:${t.color}` : `color:${t.color}`}">${esc(t.name)}</button>`).join('')}</div>
+    <form id="joinForm" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:18px"><input id="nm" type="text" maxlength="18" placeholder="Ton pseudo" value="${esc(ME.name)}" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" enterkeyhint="go" style="max-width:320px;text-align:center;font-size:22px;font-weight:600">
+    ${teams ? `<div class="team-pick" style="max-width:360px">${teams.map(t => `<button type="button" data-t="${t.id}" class="${ME.team === t.id ? 'sel' : ''}" style="border-color:${t.color};${ME.team === t.id ? `background:${t.color}` : `color:${t.color}`}">${esc(t.name)}</button>`).join('')}</div>
       <p class="mute" style="font-size:13px">Sans choix, tu seras placé dans l'équipe la plus petite</p>` : ''}
-    <button class="btn big warm" id="joinGo">Je rejoins 🚀</button>
+    <button type="submit" class="btn big warm" id="joinGo">Je rejoins 🚀</button></form>
     ${S.phase !== 'lobby' ? '<p class="mute">La partie a commencé, tu peux quand même rejoindre.</p>' : ''}</div>`;
   $('#emo').onclick = e => { ME.emoji = EMOJIS[(EMOJIS.indexOf(ME.emoji) + 1) % EMOJIS.length]; e.target.textContent = ME.emoji; };
   document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { ME.team = b.dataset.t; ME.name = $('#nm').value; playerKey = ''; playerJoin(); });
   const go = () => { const n = $('#nm').value.trim(); if(!n) return toast('Choisis un pseudo'); ME.name = n; ME.joined = true; ME.joinedAt = Date.now(); saveMe(); transport.send({kind:'join', ...ME}); playerKey = ''; };
-  $('#joinGo').onclick = go; $('#nm').onkeydown = e => e.key === 'Enter' && go();
+  $('#joinForm').onsubmit = e => { e.preventDefault(); $('#nm').blur(); go(); };
+  $('#nm').oninput = e => { ME.name = e.target.value; };
+  $('#nm').onfocus = () => setTimeout(() => $('#nm') && $('#nm').scrollIntoView({block:'center', behavior:'smooth'}), 300);
 }
 
 /* ---------------- Go ---------------- */
