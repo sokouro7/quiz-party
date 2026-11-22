@@ -175,9 +175,46 @@ h2{font-size:clamp(22px,3vw,32px);font-weight:700;letter-spacing:-.02em}
 /* ---- Effets / Noël ---- */
 #snow{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
 #app{position:relative;z-index:1}
-body.noel{background:radial-gradient(1200px 700px at 15% -10%,#1E3A8A 0%,transparent 60%),radial-gradient(900px 600px at 110% 110%,#7F1D1D 0%,transparent 55%),#0A1230;background-attachment:fixed}
+body.th-noel{background:radial-gradient(1200px 700px at 15% -10%,#1E3A8A 0%,transparent 60%),radial-gradient(900px 600px at 110% 110%,#7F1D1D 0%,transparent 55%),#0A1230;background-attachment:fixed}
 .hills{position:fixed;left:0;right:0;bottom:0;width:100%;height:90px;pointer-events:none;z-index:0;display:none}
-body.noel.lobbyfx .hills{display:block}
+body.th-noel.lobbyfx .hills{display:block}
+body.th-hot{--warm:#F97316;background:radial-gradient(1100px 700px at 10% -10%,#9A3412 0%,transparent 60%),radial-gradient(900px 600px at 110% 110%,#B91C1C 0%,transparent 55%),#1A0505;background-attachment:fixed}
+body.th-anniv{--warm:#EC4899;background:radial-gradient(1100px 700px at 10% -10%,#6D28D9 0%,transparent 60%),radial-gradient(900px 600px at 110% 110%,#DB2777 0%,transparent 55%),#1B0B3A;background-attachment:fixed}
+body.th-dance{--warm:#D946EF;background:radial-gradient(900px 600px at 20% 0%,#7E22CE 0%,transparent 60%),radial-gradient(800px 600px at 100% 100%,#0E7490 0%,transparent 55%),#05010F;background-attachment:fixed}
+body.th-sexy{--warm:#F43F5E;background:radial-gradient(1000px 700px at 15% -10%,#9D174D 0%,transparent 60%),radial-gradient(900px 600px at 110% 110%,#BE123C 0%,transparent 55%),#14020A;background-attachment:fixed}
+.deco{position:fixed;pointer-events:none;z-index:0;display:none}
+body.th-anniv.lobbyfx .bunting{display:block}
+.bunting{top:64px;left:0;right:0;width:100%;height:46px}
+body.th-hot .heat{display:block}
+.heat{left:0;right:0;bottom:0;height:34vh;background:linear-gradient(0deg,rgba(249,115,22,.35),rgba(239,68,68,.12) 40%,transparent);animation:heat 2.2s ease-in-out infinite alternate;transform-origin:bottom}
+@keyframes heat{from{opacity:.65;transform:scaleY(.92)}to{opacity:1;transform:scaleY(1.06)}}
+body.th-dance .beams{display:block}
+.beams{inset:0;overflow:hidden;mix-blend-mode:screen;opacity:.33}
+.beams i{position:absolute;top:-20vh;width:30vw;height:140vh;transform-origin:50% 0;filter:blur(10px)}
+.beams i:nth-child(1){left:8vw;background:linear-gradient(180deg,rgba(34,211,238,.9),transparent 75%);clip-path:polygon(45% 0,55% 0,100% 100%,0 100%);animation:sweep 6s ease-in-out infinite alternate}
+.beams i:nth-child(2){right:8vw;background:linear-gradient(180deg,rgba(232,121,249,.9),transparent 75%);clip-path:polygon(45% 0,55% 0,100% 100%,0 100%);animation:sweep 5s ease-in-out -2s infinite alternate-reverse}
+.beams i:nth-child(3){left:38vw;background:linear-gradient(180deg,rgba(250,204,21,.8),transparent 70%);clip-path:polygon(46% 0,54% 0,100% 100%,0 100%);animation:sweep 7s ease-in-out -4s infinite alternate}
+@keyframes sweep{from{transform:rotate(-28deg)}to{transform:rotate(28deg)}}
+body.th-sexy .glow{display:block}
+.glow{inset:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(190,18,60,.35) 100%);animation:glow 3s ease-in-out infinite alternate}
+@keyframes glow{from{opacity:.6}to{opacity:1}}
+.flyer{position:fixed;top:0;left:0;z-index:2;pointer-events:none;white-space:nowrap;line-height:1}
+.flyer .big{font-size:64px;display:inline-block}
+.flyer .trail{font-size:28px;opacity:.85;margin-right:4px;animation:twk .4s infinite alternate}
+.flyer.cross{animation:sleigh 9s linear forwards}
+.flyer.rise{top:auto;bottom:0;animation:rise 10s ease-in forwards}
+@keyframes rise{0%{transform:translate(0,30vh)}50%{transform:translate(6vw,-50vh) rotate(4deg)}100%{transform:translate(-4vw,-130vh) rotate(-4deg)}}
+.flyer.drop{animation:drop 10s ease-in-out forwards;display:flex;flex-direction:column;align-items:center;transform-origin:50% 0}
+.flyer.drop .cord{width:2px;height:22vh;background:linear-gradient(#999,#ddd)}
+.flyer.drop .big{animation:spin 2s linear infinite}
+@keyframes drop{0%{transform:translateY(-60vh)}20%{transform:translateY(0) rotate(6deg)}35%{transform:rotate(-6deg)}50%{transform:rotate(5deg)}65%{transform:rotate(-4deg)}80%{transform:translateY(0) rotate(2deg)}100%{transform:translateY(-60vh)}}
+@keyframes spin{from{filter:hue-rotate(0deg) brightness(1.1)}to{filter:hue-rotate(360deg) brightness(1.3)}}
+.cheer{position:fixed;left:50%;top:38%;z-index:65;pointer-events:none;font-size:clamp(28px,8vw,46px);font-weight:700;white-space:nowrap;text-shadow:0 4px 18px rgba(0,0,0,.5);animation:cheer 1.9s cubic-bezier(.2,1.4,.4,1) forwards}
+@keyframes cheer{0%{transform:translate(-50%,0) scale(.3) rotate(-8deg);opacity:0}20%{transform:translate(-50%,0) scale(1.1) rotate(3deg);opacity:1}70%{transform:translate(-50%,-20px) scale(1);opacity:1}100%{transform:translate(-50%,-60px) scale(.9);opacity:0}}
+.p-avatar{font-size:84px;line-height:1;display:inline-block;animation:dance 1.2s ease-in-out infinite;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none}
+@keyframes dance{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-12px) rotate(6deg)}}
+.shake{animation:shake .5s both}
+@keyframes shake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(4px)}30%,50%,70%{transform:translateX(-8px)}40%,60%{transform:translateX(8px)}}
 .sleigh{position:fixed;top:12vh;left:0;z-index:2;pointer-events:none;width:min(360px,80vw);animation:sleigh 10s linear forwards}
 .sleigh svg{width:100%;height:auto;display:block;overflow:visible}
 @keyframes sleigh{0%{transform:translate(-110%,0)}25%{transform:translate(22vw,-28px)}50%{transform:translate(48vw,12px)}75%{transform:translate(74vw,-22px)}100%{transform:translate(102vw,0)}}
@@ -212,7 +249,7 @@ body.noel.lobbyfx .hills{display:block}
 .p-note{font-size:13px;color:var(--mute);text-align:center}
 .mini-lb .r{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.07);margin-bottom:6px;font-weight:600}
 .mini-lb .r.me{background:rgba(99,102,241,.45);outline:2px solid var(--indigo-2)}
-@media (max-width:700px){body.noel{background-attachment:scroll}}
+@media (max-width:700px){body[class*="th-"]{background-attachment:scroll}}
 .panel-title{font-size:clamp(40px,7vw,88px);font-weight:700;letter-spacing:-.03em;line-height:1.02;max-width:1100px;animation:panelIn .8s cubic-bezier(.2,1.4,.4,1) both}
 .panel-body{font-size:clamp(20px,2.6vw,30px);color:#E0E7FF;max-width:900px;line-height:1.35;animation:slideUp .6s .25s both}
 @keyframes panelIn{0%{transform:scale(.6) rotate(-3deg);opacity:0}100%{transform:none;opacity:1}}
@@ -247,6 +284,11 @@ body.has-strip .stage{padding-bottom:84px}
 <body>
 <canvas id="snow"></canvas>
 <svg class="hills" viewBox="0 0 1440 90" preserveAspectRatio="none" aria-hidden="true"><path d="M0 50 Q180 10 360 42 T720 38 T1080 34 T1440 44 V90 H0Z" fill="#DCE8FF" opacity=".85"/><path d="M0 70 Q240 40 480 66 T960 62 T1440 68 V90 H0Z" fill="#fff"/></svg>
+<svg class="deco bunting" viewBox="0 0 1200 46" preserveAspectRatio="none" aria-hidden="true"><path d="M0 4 Q600 30 1200 4" stroke="#fff" stroke-opacity=".5" fill="none" stroke-width="2"/>
+  <g><path d="M9 6.1 L41 6.1 L25 34.1 Z" fill="#E5484D"/><path d="M59 10.1 L91 10.1 L75 38.1 Z" fill="#3E63DD"/><path d="M109 13.7 L141 13.7 L125 41.7 Z" fill="#F5A524"/><path d="M159 17.0 L191 17.0 L175 45.0 Z" fill="#30A46C"/><path d="M209 19.8 L241 19.8 L225 47.8 Z" fill="#8E4EC6"/><path d="M259 22.4 L291 22.4 L275 50.4 Z" fill="#0EA5B7"/><path d="M309 24.5 L341 24.5 L325 52.5 Z" fill="#E5484D"/><path d="M359 26.3 L391 26.3 L375 54.3 Z" fill="#3E63DD"/><path d="M409 27.8 L441 27.8 L425 55.8 Z" fill="#F5A524"/><path d="M459 28.9 L491 28.9 L475 56.9 Z" fill="#30A46C"/><path d="M509 29.6 L541 29.6 L525 57.6 Z" fill="#8E4EC6"/><path d="M559 30.0 L591 30.0 L575 58.0 Z" fill="#0EA5B7"/><path d="M609 30.0 L641 30.0 L625 58.0 Z" fill="#E5484D"/><path d="M659 29.6 L691 29.6 L675 57.6 Z" fill="#3E63DD"/><path d="M709 28.9 L741 28.9 L725 56.9 Z" fill="#F5A524"/><path d="M759 27.8 L791 27.8 L775 55.8 Z" fill="#30A46C"/><path d="M809 26.3 L841 26.3 L825 54.3 Z" fill="#8E4EC6"/><path d="M859 24.5 L891 24.5 L875 52.5 Z" fill="#0EA5B7"/><path d="M909 22.4 L941 22.4 L925 50.4 Z" fill="#E5484D"/><path d="M959 19.8 L991 19.8 L975 47.8 Z" fill="#3E63DD"/><path d="M1009 17.0 L1041 17.0 L1025 45.0 Z" fill="#F5A524"/><path d="M1059 13.7 L1091 13.7 L1075 41.7 Z" fill="#30A46C"/><path d="M1109 10.1 L1141 10.1 L1125 38.1 Z" fill="#8E4EC6"/><path d="M1159 6.1 L1191 6.1 L1175 34.1 Z" fill="#0EA5B7"/></g></svg>
+<div class="deco heat"></div>
+<div class="deco beams"><i></i><i></i><i></i></div>
+<div class="deco glow"></div>
 <div id="app"></div>
 <canvas id="confetti"></canvas>
 <div id="toast"></div>
@@ -263,7 +305,7 @@ body.has-strip .stage{padding-bottom:84px}
      V2 = Supabase Realtime (même API send/on, voir commentaire)
    ========================================================= */
 
-const APP_VERSION = '2026-11-22c'; // à changer à chaque mise en ligne : les téléphones en retard se rechargent seuls
+const APP_VERSION = '2026-11-22d'; // à changer à chaque mise en ligne : les téléphones en retard se rechargent seuls
 const $ = (s, el = document) => el.querySelector(s);
 const app = $('#app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -295,6 +337,18 @@ const TYPES = {
   estimation: {label:'Estimation',      icon:'🔢', help:'Réponse chiffrée. Le plus proche gagne tout, les autres selon leur écart.'},
   panneau:    {label:'Panneau',         icon:'📣', help:"Un écran de message entre deux questions (pause, blague, annonce...). Pas de réponse ni de points. Il peut afficher le classement."}
 };
+
+/* ---------------- Ambiances ---------------- */
+const THEMES = {
+  noel:      {label:'🎄 Noël',             particle:'snow',     react:'❄️', proj:'snowball', projName:'une boule de neige', projEn:'a snowball',   burst:['❄️','🎁','⭐','🎄','☃️'], splat:['#FFFFFF','#DBEAFE'], cheer:'Ho ho ho ! 🎅', cheerEn:'Ho ho ho! 🎅', titleIcon:'🎄'},
+  hot:       {label:'🌶️ Hot (pimenté)',    particle:'embers',   react:'🌶️', proj:'🌶️', projName:'un piment', projEn:'a chili', burst:['🔥','🌶️','💥','🥵'], splat:['#F97316','#FACC15','#EF4444'], cheer:'Caliente ! 🔥', cheerEn:'So hot! 🔥', titleIcon:'🌶️'},
+  anniv:     {label:'🎂 Anniversaire',     particle:'confetti', react:'🎈', proj:'🎈', projName:'un ballon', projEn:'a balloon', burst:['🎈','🎉','🎂','🎁','🥳'], splat:['#E5484D','#3E63DD','#F5A524','#30A46C','#8E4EC6','#0EA5B7'], cheer:'Hip hip hip, hourra ! 🎉', cheerEn:'Hip hip hooray! 🎉', titleIcon:'🎂'},
+  dance:     {label:'🪩 Soirée dansante',  particle:'disco',    react:'🎵', proj:'🎵', projName:'une note de musique', projEn:'a music note', burst:['🎵','🎶','🪩','✨','💃','🕺'], splat:['#22D3EE','#E879F9','#FACC15','#A3E635'], cheer:'Ça groove ! 🕺', cheerEn:'Groovy! 🕺', titleIcon:'🪩'},
+  sexy:      {label:'💋 Sooo sexy',        particle:'petals',   react:'💋', proj:'💋', projName:'un bisou', projEn:'a kiss', burst:['💋','❤️','🌹','✨','😘'], splat:['#F43F5E','#FB7185','#FDA4AF','#BE123C'], cheer:'Irrésistible 😘', cheerEn:'Irresistible 😘', titleIcon:'💋'},
+  classique: {label:'✨ Classique',        particle:null,       react:'🎉', proj:'emoji', projName:'des confettis', projEn:'confetti', burst:['🎉','✨','🥳','👏'], splat:['#E5484D','#3E63DD','#F5A524','#30A46C','#8E4EC6','#0EA5B7'], cheer:'Bravo ! 👏', cheerEn:'Well done! 👏', titleIcon:''}
+};
+const TH = id => THEMES[id] || THEMES.noel;
+let CUR_THEME = 'noel';
 
 /* ---------------- Transport ----------------
    Deux canaux en parallèle :
@@ -406,24 +460,45 @@ function loopConf(){
   confRAF = parts.length ? requestAnimationFrame(loopConf) : (cx.clearRect(0,0,cv.width,cv.height), null);
 }
 
-/* ---------- Effets : neige, traîneau, projectiles ---------- */
-const snowCv = $('#snow'), sx = snowCv.getContext('2d'); let flakes = [], snowTarget = 0, snowOn = false;
+/* ---------- Effets : particules d'ambiance, objets volants, projectiles ---------- */
+const snowCv = $('#snow'), sx = snowCv.getContext('2d'); let flakes = [], snowTarget = 0, snowOn = false, partKind = 'snow';
 function resizeSnow(){ snowCv.width = innerWidth * devicePixelRatio; snowCv.height = innerHeight * devicePixelRatio; }
 addEventListener('resize', resizeSnow); resizeSnow();
-function newFlake(anywhere){ const d = devicePixelRatio, r = Math.random() * 2.6 + 1;
-  return {x: Math.random() * snowCv.width, y: anywhere ? Math.random() * snowCv.height : -10 * d, r, vy: .35 + r * .35, vx: (Math.random() - .5) * .3, ph: Math.random() * 6, w: .01 + Math.random() * .02, amp: .3 + Math.random() * .6, a: .35 + Math.random() * .5}; }
-function setSnow(level){
-  snowTarget = Math.round(level * (innerWidth < 700 ? 70 : 170));
+const rnd = a => a[Math.floor(Math.random() * a.length)];
+function newFlake(anywhere){
+  const d = devicePixelRatio, W = snowCv.width, H = snowCv.height, k = partKind;
+  const f = {k, x: Math.random() * W, ph: Math.random() * 6, w: .01 + Math.random() * .02, amp: .3 + Math.random() * .6, a: .35 + Math.random() * .5, rot: Math.random() * 6, vr: (Math.random() - .5) * .08};
+  if(k === 'snow'){ f.r = Math.random() * 2.6 + 1; f.y = anywhere ? Math.random() * H : -10 * d; f.vy = .35 + f.r * .35; f.vx = (Math.random() - .5) * .3; }
+  if(k === 'embers'){ f.r = Math.random() * 2.2 + .8; f.y = anywhere ? Math.random() * H : H + 10 * d; f.vy = -(.6 + Math.random() * 1.4); f.vx = (Math.random() - .5) * .4; f.c = rnd(['#F97316','#FACC15','#EF4444','#FB923C']); f.a = .5 + Math.random() * .5; }
+  if(k === 'confetti'){ f.r = Math.random() * 3 + 3; f.y = anywhere ? Math.random() * H : -12 * d; f.vy = .7 + Math.random() * 1.1; f.vx = (Math.random() - .5) * .5; f.c = rnd(COLORS); f.a = .85; f.vr = (Math.random() - .5) * .2; }
+  if(k === 'petals'){ f.r = Math.random() * 3 + 4; f.y = anywhere ? Math.random() * H : -12 * d; f.vy = .4 + Math.random() * .7; f.vx = (Math.random() - .5) * .4; f.c = rnd(['#F43F5E','#FB7185','#BE123C','#FDA4AF']); f.heart = Math.random() < .45; f.a = .55 + Math.random() * .4; }
+  if(k === 'disco'){ f.r = Math.random() * 3 + 1.5; f.y = Math.random() * H; f.vy = (Math.random() - .5) * .3; f.vx = (Math.random() - .5) * .8; f.c = rnd(['#22D3EE','#E879F9','#FACC15','#A3E635','#FB7185','#FFFFFF']); f.life = 0; f.max = 90 + Math.random() * 220; }
+  return f;
+}
+function setSnow(level, kind){
+  kind = kind || partKind;
+  if(kind !== partKind){ partKind = kind; flakes = []; }
+  snowTarget = Math.round(level * (innerWidth < 700 ? 70 : 170) * (kind === 'confetti' || kind === 'petals' ? .6 : 1));
   if(!snowOn && snowTarget > 0){ snowOn = true; requestAnimationFrame(snowLoop); }
 }
+function drawHeart(r){ sx.beginPath(); sx.moveTo(0, r * .35); sx.bezierCurveTo(-r * 1.1, -r * .4, -r * .4, -r * 1.1, 0, -r * .45); sx.bezierCurveTo(r * .4, -r * 1.1, r * 1.1, -r * .4, 0, r * .35); sx.fill(); }
 function snowLoop(){
   const W = snowCv.width, H = snowCv.height, d = devicePixelRatio;
   if(flakes.length < snowTarget){ const first = !flakes.length; for(let i = flakes.length; i < snowTarget; i++) flakes.push(newFlake(first)); }
-  sx.clearRect(0, 0, W, H); sx.fillStyle = '#fff';
+  sx.clearRect(0, 0, W, H);
   for(const f of flakes){
-    f.y += f.vy * d; f.ph += f.w; f.x += (Math.sin(f.ph) * f.amp + f.vx) * d;
-    if(f.y > H + 10 || f.x < -20 || f.x > W + 20){ Object.assign(f, newFlake(false)); f.dead = flakes.length > snowTarget; }
-    sx.globalAlpha = f.a; sx.beginPath(); sx.arc(f.x, f.y, f.r * d, 0, 7); sx.fill();
+    f.y += f.vy * d; f.ph += f.w; f.rot += f.vr;
+    f.x += (f.k === 'disco' ? f.vx : Math.sin(f.ph) * f.amp + f.vx) * d;
+    const out = f.k === 'embers' ? f.y < -10 * d : f.k === 'disco' ? ++f.life > f.max : f.y > H + 12 * d;
+    if(out || f.x < -20 || f.x > W + 20){ Object.assign(f, newFlake(false)); f.dead = flakes.length > snowTarget; }
+    if(f.k === 'snow'){ sx.globalAlpha = f.a; sx.fillStyle = '#fff'; sx.beginPath(); sx.arc(f.x, f.y, f.r * d, 0, 7); sx.fill(); continue; }
+    if(f.k === 'embers'){ sx.globalAlpha = f.a * (.55 + .45 * Math.sin(f.ph * 4)); sx.fillStyle = f.c; sx.beginPath(); sx.arc(f.x, f.y, f.r * d, 0, 7); sx.fill(); continue; }
+    if(f.k === 'disco'){ sx.globalAlpha = Math.sin(Math.PI * f.life / f.max) * .9; sx.fillStyle = f.c; sx.beginPath(); sx.arc(f.x, f.y, f.r * d, 0, 7); sx.fill(); continue; }
+    sx.save(); sx.translate(f.x, f.y); sx.rotate(f.rot); sx.globalAlpha = f.a; sx.fillStyle = f.c;
+    if(f.k === 'confetti') sx.fillRect(-f.r * d, -f.r * d / 2.4, f.r * 2 * d, f.r * d / 1.2);
+    else if(f.heart) drawHeart(f.r * d);
+    else { sx.beginPath(); sx.ellipse(0, 0, f.r * d, f.r * d * .55, 0, 0, 7); sx.fill(); }
+    sx.restore();
   }
   sx.globalAlpha = 1;
   flakes = flakes.filter(f => !f.dead);
@@ -460,12 +535,18 @@ function sleighSVG(){
 }
 let sleighOn = false, sleighTimer = null, sleighFirst = null;
 function jingle(){ [1568, 1760, 1568, 2093, 1760].forEach((f, i) => setTimeout(() => beep(f, .09, 'triangle', .03), i * 110)); }
+function whoosh(){ [440, 520, 660].forEach((f, i) => setTimeout(() => beep(f, .08, 'sine', .025), i * 90)); }
+// Objet qui traverse l'écran, différent selon l'ambiance
 function launchSleigh(){
-  if(!document.body.classList.contains('noel') || document.hidden) return;
-  const el = document.createElement('div'); el.className = 'sleigh'; el.innerHTML = sleighSVG();
-  el.style.top = (6 + Math.random() * 16) + 'vh';
+  if(document.hidden || CUR_THEME === 'classique') return;
+  const el = document.createElement('div');
+  if(CUR_THEME === 'noel'){ el.className = 'sleigh'; el.innerHTML = sleighSVG(); el.style.top = (6 + Math.random() * 16) + 'vh'; }
+  if(CUR_THEME === 'hot'){ el.className = 'flyer cross'; el.innerHTML = '<span class="trail">🔥🔥🔥</span><span class="big">🌶️</span>'; el.style.top = (8 + Math.random() * 20) + 'vh'; }
+  if(CUR_THEME === 'sexy'){ el.className = 'flyer cross'; el.innerHTML = '<span class="trail">💕 💕 💕</span><span class="big">💘</span>'; el.style.top = (8 + Math.random() * 20) + 'vh'; }
+  if(CUR_THEME === 'anniv'){ el.className = 'flyer rise'; el.innerHTML = '<span class="big">🎈</span><span class="big" style="margin-left:-18px;transform:translateY(-22px);display:inline-block">🎈</span><span class="big" style="margin-left:-18px">🎈</span>'; el.style.left = (10 + Math.random() * 70) + 'vw'; }
+  if(CUR_THEME === 'dance'){ el.className = 'flyer drop'; el.innerHTML = '<span class="cord"></span><span class="big" style="font-size:96px">🪩</span>'; el.style.left = (20 + Math.random() * 55) + 'vw'; }
   document.body.appendChild(el); setTimeout(() => el.remove(), 10500);
-  if(location.hash.startsWith('#host')) jingle();
+  if(location.hash.startsWith('#host')) (CUR_THEME === 'noel' ? jingle : whoosh)();
 }
 function startSleighs(on){
   if(on === sleighOn) return; sleighOn = on;
@@ -473,16 +554,39 @@ function startSleighs(on){
   if(on){ sleighFirst = setTimeout(launchSleigh, 2500); sleighTimer = setInterval(launchSleigh, 18000); }
 }
 function fx({theme = 'noel', snow = 0, sleigh = false, hills = false} = {}){
-  const noel = theme === 'noel';
-  document.body.classList.toggle('noel', noel);
+  const t = THEMES[theme] ? theme : 'noel';
+  if(t !== CUR_THEME){ document.body.querySelectorAll('.sleigh,.flyer').forEach(e => e.remove()); }
+  CUR_THEME = t;
+  Object.keys(THEMES).forEach(k => document.body.classList.toggle('th-' + k, k === t));
   document.body.classList.toggle('lobbyfx', !!hills);
-  setSnow(noel ? snow : 0);
-  startSleighs(noel && sleigh);
+  const th = TH(t);
+  setSnow(th.particle ? snow : 0, th.particle || partKind);
+  startSleighs(t !== 'classique' && sleigh);
+}
+
+// Explosion d'emojis (téléphones et grand écran)
+function emojiBurst(x, y, n = 14, list){
+  list = list || TH(CUR_THEME).burst;
+  for(let i = 0; i < n; i++){
+    const d = document.createElement('div'); d.className = 'proj'; d.textContent = rnd(list);
+    d.style.fontSize = (18 + Math.random() * 22) + 'px';
+    document.body.appendChild(d);
+    const ang = -Math.PI / 2 + (Math.random() - .5) * 2.6, dist = 80 + Math.random() * 160;
+    const tx = x + Math.cos(ang) * dist, ty = y + Math.sin(ang) * dist;
+    d.animate([{transform:`translate(${x - 14}px,${y - 14}px) scale(.3) rotate(0deg)`, opacity:1},
+               {transform:`translate(${tx - 14}px,${ty - 14}px) scale(1.1) rotate(${(Math.random() - .5) * 120}deg)`, opacity:1, offset:.6},
+               {transform:`translate(${tx - 14}px,${ty + 70}px) scale(.9) rotate(${(Math.random() - .5) * 200}deg)`, opacity:0}],
+      {duration:1100 + Math.random() * 500, easing:'cubic-bezier(.2,.7,.3,1)'}).onfinish = () => d.remove();
+  }
+}
+function cheer(text){
+  const d = document.createElement('div'); d.className = 'cheer'; d.textContent = text;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 1900);
 }
 
 // Projectile (boule de neige / emoji) lancé par un joueur vers sa bulle sur le grand écran
 function spawnProjectile(id){
-  const noel = document.body.classList.contains('noel');
+  const th = TH(CUR_THEME);
   const pick = sel => [...document.querySelectorAll(sel)].find(e => e.dataset.id === id);
   const target = pick('#astrip [data-id]') || pick('#app [data-id]');
   let x1, y1;
@@ -490,7 +594,8 @@ function spawnProjectile(id){
   else { x1 = innerWidth * (.2 + Math.random() * .6); y1 = innerHeight * (.3 + Math.random() * .4); }
   const x0 = innerWidth * Math.random(), y0 = innerHeight + 40;
   const el = document.createElement('div'); el.className = 'proj';
-  el.innerHTML = noel ? '<div class="snowball"></div>' : ['🎉','🔥','👏','😂','🥳'][Math.floor(Math.random() * 5)];
+  if(th.proj === 'snowball') el.innerHTML = '<div class="snowball"></div>';
+  else el.textContent = th.proj === 'emoji' ? rnd(th.burst) : th.proj;
   document.body.appendChild(el);
   const o = 16, xm = (x0 + x1) / 2, ym = Math.min(y0, y1) - 140;
   const a = el.animate([
@@ -498,16 +603,16 @@ function spawnProjectile(id){
     {transform:`translate(${xm-o}px,${ym-o}px) scale(1.15) rotate(200deg)`},
     {transform:`translate(${x1-o}px,${y1-o}px) scale(1) rotate(380deg)`}], {duration:700, easing:'cubic-bezier(.3,.6,.4,1)'});
   a.onfinish = () => {
-    el.remove(); splat(x1, y1, noel); beep(260 + Math.random() * 200, .08, 'triangle', .05);
-    const b = BUB.get(id);
+    el.remove(); splat(x1, y1, th.splat); beep(260 + Math.random() * 200, .08, 'triangle', .05);
+    const b = document.getElementById('arena') ? BUB.get(id) : null;
     if(b){ b.vy = -5 - Math.random() * 3; b.vx += (Math.random() - .5) * 6; b.spin = (Math.random() - .5) * 40; }
     else if(target) target.animate([{transform:'scale(1)'},{transform:'scale(1.25) rotate(-8deg)'},{transform:'scale(1)'}], {duration:420});
   };
 }
-function splat(x, y, noel){
+function splat(x, y, cols){
   for(let i = 0; i < 12; i++){
     const d = document.createElement('div'); d.className = 'proj';
-    d.innerHTML = `<div style="width:8px;height:8px;border-radius:50%;background:${noel ? '#fff' : COLORS[i % 6]}"></div>`;
+    d.innerHTML = `<div style="width:8px;height:8px;border-radius:50%;background:${cols[i % cols.length]}"></div>`;
     document.body.appendChild(d);
     const ang = Math.random() * 6.28, dist = 30 + Math.random() * 60;
     d.animate([{transform:`translate(${x}px,${y}px)`, opacity:1}, {transform:`translate(${x + Math.cos(ang) * dist}px,${y + Math.sin(ang) * dist}px)`, opacity:0}], {duration:550, easing:'ease-out'}).onfinish = () => d.remove();
@@ -774,7 +879,7 @@ function renderEditor(saved){
       <input data-f="title" value="${esc(QUIZ.title)}">
       <div class="row" style="margin-top:14px">
         <label class="toggle"><input type="checkbox" data-f="teams" ${t.enabled ? 'checked' : ''}> Jouer en équipes</label>
-        <select data-f="theme" style="width:auto;margin-left:auto"><option value="noel" ${QUIZ.theme === 'noel' ? 'selected':''}>🎄 Ambiance Noël</option><option value="classique" ${QUIZ.theme === 'classique' ? 'selected':''}>✨ Ambiance classique</option></select>
+        <select data-f="theme" style="width:auto;margin-left:auto" title="Ambiance">${Object.entries(THEMES).map(([k,v]) => `<option value="${k}" ${QUIZ.theme === k ? 'selected':''}>${v.label}</option>`).join('')}</select>
         ${t.enabled ? `<select data-f="teamCount" style="width:auto">${[2,3,4].map(n => `<option ${t.list.length === n ? 'selected':''} value="${n}">${n} équipes</option>`).join('')}</select>` : ''}
       </div>
       ${t.enabled ? `<div class="grid2">${t.list.map((tm,i) => `<div><span class="lbl" style="color:${tm.color}">Équipe ${i+1}</span><input data-team="${i}" value="${esc(tm.name)}"></div>`).join('')}</div>
@@ -1257,6 +1362,7 @@ function addPlayer({id, name, emoji, team}){
     }
   } else team = null;
   const clean = String(name || 'Anonyme').trim().slice(0, 18) || 'Anonyme';
+  emoji = EMOJIS.includes(emoji) ? emoji : '🙂';
   if(G.players[id]) Object.assign(G.players[id], {name:clean, emoji, team});
   else { G.players[id] = {id, name:clean, emoji: emoji || '🙂', team, score:0, streak:0, lastGain:0, lastOk:null, prevRank:null, bot:false}; beep(880, .08); }
   changed();
@@ -1471,7 +1577,7 @@ function renderHost(force = true){
   renderStrip(['reveal','leaderboard','panel'].includes(P));
   app.onclick = app.oninput = app.onchange = null;
   $('#mute').onclick = () => { muted = !muted; store.set('quiz-muted', muted); $('#mute').textContent = muted ? '🔇' : '🔊'; };
-  $('#quit').onclick = () => { if(confirm('Quitter la partie ? Les joueurs seront déconnectés.')){ G.phase = 'podium'; transport.send(publicState()); store.del('quiz-host-game'); G = null; transport.close(); transport = null; stopTimers(); location.hash = 'host'; route(); } };
+  $('#quit').onclick = () => { if(confirm('Quitter la partie ? Les joueurs seront déconnectés.')){ G.phase = 'podium'; transport.send(publicState()); store.del('quiz-host-game'); G = null; transport.close(); transport = null; stopTimers(); renderStrip(false); const o = document.getElementById('ovl'); if(o) o.remove(); location.hash = 'host'; route(); } };
   app.addEventListener('click', hostClicks);
   afterHostRender(); setNet(NET);
 }
@@ -1507,7 +1613,7 @@ function hostLobby(){
         return `<div class="team-col" style="border-color:${t.color};background:${t.color}22"><h3><span>${esc(t.name)}</span><span class="mute">${m.length}</span></h3>${m.map(p => ptag(p)).join('') || '<span class="mute">Personne encore</span>'}</div>`; }).join('')}</div>`
     : arenaHTML(players);
   return `<div class="center">
-    <p class="mute" style="font-size:18px">${G.quiz.theme === 'noel' ? '🎄 ' : ''}${esc(G.quiz.title)}</p>
+    <p class="mute" style="font-size:18px">${TH(G.quiz.theme).titleIcon} ${esc(G.quiz.title)}</p>
     <div class="row" style="justify-content:center;gap:28px">
       ${qrSVG(joinLink())}
       <div style="text-align:left"><p style="font-size:18px">Scanne le QR code ou entre le code</p><div class="code">${esc(G.room)}</div>
@@ -1519,7 +1625,7 @@ function hostLobby(){
       <button class="btn ghost sm" data-h="bots">🤖 +5 bots de test</button>
       ${T.enabled ? `<button class="btn ghost sm" data-h="balance">⚖️ Équilibrer les équipes</button>` : ''}
     </div>
-    <p class="mute" style="font-size:14px;margin-top:-6px">${players.length ? `${G.quiz.theme === 'noel' ? '❄️ Les joueurs peuvent lancer des boules de neige depuis leur téléphone' : '🎉 Les joueurs peuvent envoyer des confettis depuis leur téléphone'}` : ''}</p>
+    <p class="mute" style="font-size:14px;margin-top:-6px">${players.length ? `${TH(G.quiz.theme).react} Les joueurs peuvent lancer ${TH(G.quiz.theme).projName} depuis leur téléphone` : ''}</p>
     ${list}
     <button class="btn big warm" data-h="primary" ${players.length ? '' : 'disabled'}>C'est parti ! <span class="kbd">Espace</span></button>
   </div>`;
@@ -1777,7 +1883,7 @@ function renderPlayer(){
   const P = S.phase;
   if(P === 'lobby'){
     const team = S.teams && S.teams.find(t => t.id === meP.team);
-    body = `<div class="p-feedback" style="background:rgba(255,255,255,.05)"><div class="emo">${meP.emoji}</div><div class="big">Tu es dans la partie !</div>
+    body = `<div class="p-feedback" style="background:rgba(255,255,255,.05)"><div class="p-avatar" id="pAv" title="Touche-moi !">${meP.emoji}</div><div class="big">Tu es dans la partie !</div>
       ${team ? `<div class="pill" style="border-color:${team.color};color:${team.color};font-size:16px">${esc(team.name)}</div>` : ''}
       <p class="mute">${S.players.length} joueur${S.players.length > 1 ? 's' : ''} connecté${S.players.length > 1 ? 's' : ''}. Regarde le grand écran, ça va commencer.</p>
       ${reactBlock()}</div>`;
@@ -1815,10 +1921,13 @@ function renderPlayer(){
     if(top) setTimeout(() => confetti(140), 300);
   }
   app.innerHTML = `<div class="p-wrap">${head}${body}</div>`;
-  fx({theme: S.theme, snow: {lobby:.8, podium:1, ready:.4, panel:.7}[P] ?? .25, sleigh: P === 'lobby' || P === 'podium'});
+  fx({theme: S.theme, snow: {lobby:.8, podium:1, ready:.4, panel:.7}[P] ?? .25, sleigh: P === 'lobby' || P === 'podium', hills: P === 'lobby' || P === 'podium'});
+  playerCelebrate(P, meP);
   requestAnimationFrame(() => setTimeout(() => document.querySelectorAll('.p-res .bar').forEach(b => b.style.width = b.dataset.w + '%'), 80));
   app.onclick = e => {
     const rb = e.target.closest('#reactBtn, .react-trigger'); if(rb) return sendReact(rb);
+    const av = e.target.closest('#pAv'); if(av){ const r = av.getBoundingClientRect(); emojiBurst(r.left + r.width / 2, r.top + r.height / 2, 8);
+      av.animate([{transform:'translateY(0) scale(1)'},{transform:'translateY(-40px) scale(1.2) rotate(15deg)'},{transform:'translateY(0) scale(1)'}], {duration:500, easing:'cubic-bezier(.3,1.6,.5,1)'}); navigator.vibrate && navigator.vibrate(10); return; }
     const b = e.target.closest('.p-tile'); if(b) sendAnswer(+b.dataset.v);
     if(e.target.id === 'estGo') sendEst();
   };
@@ -1839,13 +1948,26 @@ function sendAnswer(v){
 }
 
 function reactBlock(){
-  const noel = S.theme === 'noel';
-  return `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:6px"><button class="react-btn" id="reactBtn" aria-label="Lancer">${noel ? '❄️' : '🎉'}</button>
-    <p class="mute" style="font-size:14px;text-align:center">Touche pour lancer ${noel ? 'une boule de neige' : 'des confettis'} sur le grand écran</p></div>`;
+  const th = TH(S.theme);
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:6px"><button class="react-btn" id="reactBtn" aria-label="Lancer">${th.react}</button>
+    <p class="mute" style="font-size:14px;text-align:center">Touche pour lancer ${th.projName} sur le grand écran</p></div>`;
 }
 let lastSent = 0;
+let celebrated = '';
+function playerCelebrate(P, me){
+  const key = S.room + P + S.qi; if(celebrated === key) return; celebrated = key;
+  const th = TH(S.theme), cx = innerWidth / 2, cy = innerHeight * .3;
+  if(P === 'lobby'){ setTimeout(() => emojiBurst(cx, innerHeight * .35, 16), 250); }
+  if(P === 'reveal' && S.reveal){
+    const g = S.reveal.gains[ME.id];
+    if(g && g.ok === true){ setTimeout(() => { emojiBurst(cx, cy, 22); cheer(th.cheer); }, 200); navigator.vibrate && navigator.vibrate([60,40,60]); }
+    else if(g && g.ok === false){ setTimeout(() => { const b = document.querySelector('.p-banner'); b && b.classList.add('shake'); }, 80); navigator.vibrate && navigator.vibrate(200); }
+  }
+  if(P === 'podium' && me.rank <= 3){ setTimeout(() => { emojiBurst(cx, cy, 30); cheer(['🥇','🥈','🥉'][me.rank - 1] + ' ' + th.cheer); }, 400); }
+}
 function sendReact(btn){
   const now = Date.now(); if(now - lastSent < 300) return; lastSent = now;
+  { const r = btn.getBoundingClientRect(); emojiBurst(r.left + r.width / 2, r.top + r.height / 2, 3, [TH(S.theme).react]); }
   transport.send({kind:'react', id:ME.id});
   navigator.vibrate && navigator.vibrate(15);
   btn.animate([{transform:'scale(1)'},{transform:'scale(.82) rotate(-12deg)'},{transform:'scale(1.08)'},{transform:'scale(1)'}], {duration:320});
@@ -1904,7 +2026,7 @@ function playerBoard(me, withReact = true){
     ${team ? `<p class="lbl" style="margin-top:6px">Équipes</p><div class="mini-lb">${team}</div>` : ''}
     ${withReact ? reactBlock() : ''}`;
 }
-function reactFab(me){ return `<button class="react-fab react-trigger" aria-label="Lancer">${S.theme === 'noel' ? '❄️' : '🎉'}<span class="me">${me.emoji}</span></button>`; }
+function reactFab(me){ return `<button class="react-fab react-trigger" aria-label="Lancer">${TH(S.theme).react}<span class="me">${me.emoji}</span></button>`; }
 
 function playerJoin(){
   fx({theme: S.theme, snow: .6});
