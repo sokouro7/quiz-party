@@ -305,8 +305,10 @@ body.has-strip .stage{padding-bottom:84px}
      V2 = Supabase Realtime (même API send/on, voir commentaire)
    ========================================================= */
 
-const APP_VERSION = '2026-11-22d'; // à changer à chaque mise en ligne : les téléphones en retard se rechargent seuls
+const APP_VERSION = '2026-11-22f'; // à changer à chaque mise en ligne : les téléphones en retard se rechargent seuls
 const $ = (s, el = document) => el.querySelector(s);
+let LANG = 'fr';                                   // langue de l'interface affichée (partie en cours)
+const L = (fr, en) => LANG === 'en' ? en : fr;
 const app = $('#app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -328,14 +330,14 @@ const TEAM_PRESETS = [
   {name:'Les Jaunes', color:'#F5A524'}, {name:'Les Verts', color:'#30A46C'}
 ];
 const TYPES = {
-  qcm:        {label:'QCM',             icon:'🎯', help:'Une ou plusieurs bonnes réponses. Plus on répond vite, plus on gagne.'},
-  vf:         {label:'Vrai / Faux',     icon:'⚖️', help:'Deux options, une seule bonne. Bonus vitesse.'},
-  majorite:   {label:'Majorité gagne',  icon:'🐑', help:'Pas de bonne réponse : ceux qui choisissent la réponse la plus votée marquent.'},
-  minorite:   {label:'Minorité gagne',  icon:'🦄', help:'Ceux qui choisissent la réponse la MOINS votée marquent (au moins 2 réponses différentes).'},
-  sondage:    {label:'Sondage',         icon:'📊', help:'Aucun point. On affiche juste les résultats du vote.'},
-  libre:      {label:'Réponse écrite',  icon:'✍️', help:"Les joueurs écrivent la réponse. Majuscules, accents et ponctuation ignorés. Tu peux accepter plusieurs variantes et tolérer les petites fautes. Bonus vitesse."},
-  estimation: {label:'Estimation',      icon:'🔢', help:'Réponse chiffrée. Le plus proche gagne tout, les autres selon leur écart.'},
-  panneau:    {label:'Panneau',         icon:'📣', help:"Un écran de message entre deux questions (pause, blague, annonce...). Pas de réponse ni de points. Il peut afficher le classement."}
+  qcm:        {label:'QCM', en:'Multiple choice',             icon:'🎯', help:'Une ou plusieurs bonnes réponses. Plus on répond vite, plus on gagne.'},
+  vf:         {label:'Vrai / Faux', en:'True / False',     icon:'⚖️', help:'Deux options, une seule bonne. Bonus vitesse.'},
+  majorite:   {label:'Majorité gagne', en:'Majority wins',  icon:'🐑', help:'Pas de bonne réponse : ceux qui choisissent la réponse la plus votée marquent.'},
+  minorite:   {label:'Minorité gagne', en:'Minority wins',  icon:'🦄', help:'Ceux qui choisissent la réponse la MOINS votée marquent (au moins 2 réponses différentes).'},
+  sondage:    {label:'Sondage', en:'Poll',         icon:'📊', help:'Aucun point. On affiche juste les résultats du vote.'},
+  libre:      {label:'Réponse écrite', en:'Written answer',  icon:'✍️', help:"Les joueurs écrivent la réponse. Majuscules, accents et ponctuation ignorés. Tu peux accepter plusieurs variantes et tolérer les petites fautes. Bonus vitesse."},
+  estimation: {label:'Estimation', en:'Estimate',      icon:'🔢', help:'Réponse chiffrée. Le plus proche gagne tout, les autres selon leur écart.'},
+  panneau:    {label:'Panneau', en:'Panel',         icon:'📣', help:"Un écran de message entre deux questions (pause, blague, annonce...). Pas de réponse ni de points. Il peut afficher le classement."}
 };
 
 /* ---------------- Ambiances ---------------- */
@@ -348,6 +350,7 @@ const THEMES = {
   classique: {label:'✨ Classique',        particle:null,       react:'🎉', proj:'emoji', projName:'des confettis', projEn:'confetti', burst:['🎉','✨','🥳','👏'], splat:['#E5484D','#3E63DD','#F5A524','#30A46C','#8E4EC6','#0EA5B7'], cheer:'Bravo ! 👏', cheerEn:'Well done! 👏', titleIcon:''}
 };
 const TH = id => THEMES[id] || THEMES.noel;
+const tl = T => LANG === 'en' ? (T.en || T.label) : T.label;
 let CUR_THEME = 'noel';
 
 /* ---------------- Transport ----------------
@@ -360,7 +363,7 @@ let CUR_THEME = 'noel';
 const PEER_PREFIX = 'quizparty-v1-';
 let NET = 'off';  // off | connecting | online
 function setNet(v){ NET = v; const el = document.getElementById('net');
-  if(el) el.innerHTML = {online:'🟢 En ligne', connecting:'🟡 Connexion...', off:'⚪ Local seulement'}[v]; }
+  if(el) el.innerHTML = {online:L('🟢 En ligne','🟢 Online'), connecting:L('🟡 Connexion...','🟡 Connecting...'), off:L('⚪ Local seulement','⚪ Local only')}[v]; }
 function peerOpts(){ try{ return JSON.parse(localStorage.getItem('quiz-peer-opts') || '{}'); }catch{ return {}; } }
 
 function createTransport(room, role){
@@ -369,7 +372,7 @@ function createTransport(room, role){
   let bc = null, closed = false;
   try{ bc = new BroadcastChannel('quiz-party-' + room); bc.onmessage = e => emit(e.data); }catch(e){}
 
-  let peer = null, conns = [], hostConn = null, queue = [];
+  let peer = null, conns = [], hostConn = null, queue = [], connect = () => {};
   const hostId = PEER_PREFIX + room;
   if(window.Peer){
     setNet('connecting');
@@ -387,25 +390,33 @@ function createTransport(room, role){
         peer.on('error', e => {
           console.warn('peer', e.type);
           if(e.type === 'unavailable-id'){ try{ peer.destroy(); }catch(_){} setTimeout(open, 2500); } // ancien id pas encore libéré
-          if(e.type === 'network' || e.type === 'server-error' || e.type === 'socket-error') setNet('off');
+          if(e.type === 'network' || e.type === 'server-error' || e.type === 'socket-error'){
+            setNet('off');
+            setTimeout(() => { if(closed) return; if(peer.destroyed) open(); else if(peer.disconnected){ try{ peer.reconnect(); }catch(_){} } }, 3000);
+          }
         });
       };
       open();
     } else {
       peer = new Peer(peerOpts());
-      const connect = () => {
-        if(closed || !peer || peer.destroyed) return;
+      connect = () => {
+        if(closed || !peer || peer.destroyed || peer.disconnected) return;
+        if(hostConn && hostConn.open) return;                 // déjà connecté : pas de doublon
+        if(hostConn){ try{ hostConn.removeAllListeners && hostConn.removeAllListeners(); hostConn.close(); }catch(_){} }
         hostConn = peer.connect(hostId, {reliable:true});
         hostConn.on('open', () => { setNet('online'); queue.splice(0).forEach(m => hostConn.send(m)); emit({from:'_net', kind:'open'}); });
         hostConn.on('data', d => emit(d));
-        hostConn.on('close', () => { setNet('connecting'); setTimeout(connect, 1500); });
+        hostConn.on('close', () => { if(closed) return; setNet('connecting'); setTimeout(connect, 1500); });
+        hostConn.on('error', () => {});
       };
       peer.on('open', connect);
       peer.on('disconnected', () => { try{ peer.reconnect(); }catch(e){} });
       peer.on('error', e => {
         console.warn('peer', e.type);
         if(e.type === 'peer-unavailable'){ setNet('connecting'); setTimeout(connect, 2000); }
-        if(e.type === 'network' || e.type === 'server-error' || e.type === 'socket-error') setNet('off');
+        if(e.type === 'network' || e.type === 'server-error' || e.type === 'socket-error'){
+          setNet('off'); setTimeout(() => { if(!closed && peer.disconnected && !peer.destroyed){ try{ peer.reconnect(); }catch(_){} } }, 3000);
+        }
       });
     }
   }
@@ -418,6 +429,11 @@ function createTransport(room, role){
       else { queue.push(m); if(queue.length > 20) queue.shift(); }
     },
     on(f){ listeners.push(f); },
+    // côté joueur : force une reconnexion propre (téléphone sorti de veille, connexion silencieusement morte)
+    kick(){ if(closed || role === 'host' || !peer) return;
+      if(peer.destroyed) return;
+      if(peer.disconnected){ try{ peer.reconnect(); }catch(_){} return; }
+      if(hostConn){ try{ hostConn.close(); }catch(_){} } else connect(); },
     close(){ closed = true; try{ bc && bc.close(); }catch(e){} try{ peer && peer.destroy(); }catch(e){} }
   };
 }
@@ -624,7 +640,7 @@ const BUB = new Map(); let arenaRAF = null;
 function arenaHTML(players){
   return `<div class="arena" id="arena">${players.map(p => { const b = BUB.get(p.id);
     return `<div class="bubble" data-h="kick" data-id="${esc(p.id)}" title="Cliquer pour retirer" style="transform:${b ? `translate(${b.x}px,${b.y}px)` : 'translate(-9999px,0)'}"><span class="e">${p.emoji}</span>${esc(p.name)}</div>`; }).join('')}
-    ${players.length ? '' : '<div class="empty">En attente des joueurs...</div>'}</div>`;
+    ${players.length ? '' : `<div class="empty">${L('En attente des joueurs...', 'Waiting for players...')}</div>`}</div>`;
 }
 function runArena(){
   cancelAnimationFrame(arenaRAF);
@@ -674,15 +690,15 @@ function runArena(){
 function countUp(el, from, to, dur = 900){
   const t0 = performance.now();
   const step = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
-    el.textContent = Math.round(from + (to - from) * e).toLocaleString('fr-FR'); if(k < 1) requestAnimationFrame(step); };
+    el.textContent = fmt(from + (to - from) * e); if(k < 1) requestAnimationFrame(step); };
   requestAnimationFrame(step);
 }
-const fmt = n => Math.round(n).toLocaleString('fr-FR');
-const ord = n => n === 1 ? '1er' : n + 'e';
+const fmt = n => Math.round(n).toLocaleString(LANG === 'en' ? 'en-US' : 'fr-FR');
+const ord = n => LANG === 'en' ? n + ((n % 100 >= 11 && n % 100 <= 13) ? 'th' : ({1:'st',2:'nd',3:'rd'}[n % 10] || 'th')) : (n === 1 ? '1er' : n + 'e');
 const choicesOf = q => q.type === 'vf' ? (q.choices && q.choices.length === 2 ? q.choices : ['Vrai','Faux']) : (q.choices || []);
 const isPanel = q => q && q.type === 'panneau';
 const normTxt = t => String(t ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/œ/g, 'oe').replace(/æ/g, 'ae')
-  .replace(/[^a-z0-9]+/g, ' ').replace(/\b(le|la|les|l|un|une|des|du|de|d)\b/g, ' ').replace(/\s+/g, ' ').trim();
+  .replace(/[^a-z0-9]+/g, ' ').replace(/\b(le|la|les|l|un|une|des|du|de|d|the|a|an)\b/g, ' ').replace(/\s+/g, ' ').trim();
 function lev(a, b){ if(a === b) return 0; const m = a.length, n = b.length; if(!m) return n; if(!n) return m;
   let prev = Array.from({length:n+1}, (_, j) => j);
   for(let i = 1; i <= m; i++){ const cur = [i]; for(let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + (a[i-1] === b[j-1] ? 0 : 1)); prev = cur; }
@@ -855,12 +871,13 @@ let botTimers = [];
 function startHostMode(){
   const saved = store.get('quiz-host-game', null);
   if(saved && saved.phase !== 'lobby' && saved.phase !== 'podium' && !G){ renderEditor(saved); return; }
-  if(G && G.phase){ connectHost(); return renderHost(); }
+  if(G && G.phase){ G.translating = false; connectHost(); return renderHost(); }
   renderEditor(saved);
 }
 
 /* ---------- Éditeur ---------- */
 function renderEditor(saved){
+  LANG = 'fr';
   fx({theme: QUIZ.theme, snow: .35});
   const t = QUIZ.teams;
   app.innerHTML = `
@@ -940,7 +957,7 @@ function renderEditor(saved){
     if(a === 'importText') openImport(saved);
     if(a === 'translate') openTranslate(saved);
     if(a === 'launch') launchGame();
-    if(a === 'resume'){ G = saved; connectHost(); renderHost(); }
+    if(a === 'resume'){ G = saved; G.translating = false; connectHost(); renderHost(); }
     if(a === 'drop'){ store.del('quiz-host-game'); renderEditor(null); }
   };
   app.oninput = app.onchange = e => {
@@ -1201,10 +1218,11 @@ function parseQuestionsText(raw){
 }
 
 /* ---------- Traduction FR <-> EN (service gratuit MyMemory, sans compte) ---------- */
-const trCache = {};
+const trCache = store.get('quiz-tr-cache', {}) || {};
+function saveTrCache(){ const k = Object.keys(trCache); if(k.length > 4000) k.slice(0, 2000).forEach(x => delete trCache[x]); store.set('quiz-tr-cache', trCache); }
 function decodeEntities(t){ const ta = document.createElement('textarea'); ta.innerHTML = t; return ta.value; }
 async function translateText(text, from, to){
-  if(!text || !String(text).trim() || /^[\d\s.,:%€$+-]+$/.test(text)) return text;
+  if(!text || !String(text).trim() || /^[\d\s.,:%€$+-]+$/.test(text) || text.length > 480) return text; // > 480 car. : limite du service, on garde l'original
   const key = from + to + text; if(trCache[key]) return trCache[key];
   const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`);
   const d = await r.json();
@@ -1213,6 +1231,39 @@ async function translateText(text, from, to){
   if(+d.responseStatus !== 200) throw new Error('service');
   return trCache[key] = decodeEntities(out);
 }
+// Traduit un quiz complet (contenu uniquement) et renvoie une copie
+async function translateQuiz(src, from, to, onProgress){
+  const copy = JSON.parse(JSON.stringify(src));
+  const jobs = [];
+  const add = (obj, k) => { if(obj && typeof obj[k] === 'string' && obj[k].trim()) jobs.push({obj, k}); };
+  add(copy, 'title');
+  copy.questions.forEach(q => {
+    add(q, 'text'); add(q, 'body'); add(q, 'unit');
+    if(q.type !== 'vf') (q.choices || []).forEach((c, i) => jobs.push({obj: q.choices, k: i}));
+    (q.accepted || []).forEach((c, i) => jobs.push({obj: q.accepted, k: i}));
+  });
+  (copy.messages || []).forEach(m => { add(m, 'title'); add(m, 'body'); });
+  (copy.teams && copy.teams.list || []).forEach(t => add(t, 'name'));
+  let done = 0, failed = null;
+  const worker = async () => {
+    while(jobs.length && !failed){
+      const j = jobs.shift();
+      try{ const v = j.obj[j.k]; if(typeof v === 'string' && v.trim()) j.obj[j.k] = await translateText(v, from, to); }
+      catch(err){ failed = err.message || 'service'; }
+      done++; onProgress && onProgress(done);
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  saveTrCache();
+  if(failed) throw new Error(failed);
+  copy.questions.forEach((q, qi) => {
+    if(q.type === 'vf') q.choices = to === 'en' ? ['True','False'] : ['Vrai','Faux'];
+    if(q.type === 'libre'){ const orig = src.questions[qi].accepted || []; q.accepted = [...new Set([...q.accepted, ...orig].filter(x => x && x.trim()))]; }
+  });
+  copy.lang = to;
+  return copy;
+}
+
 function openTranslate(saved){
   const bg = document.createElement('div'); bg.className = 'modal-bg';
   bg.innerHTML = `<div class="modal" style="max-width:560px">
@@ -1226,37 +1277,15 @@ function openTranslate(saved){
     const b = e.target.closest('[data-t]'); if(e.target === bg && !busy) return bg.remove(); if(!b || busy) return;
     if(b.dataset.t === 'close') return bg.remove();
     const [from, to] = b.dataset.t.split('|');
-    const copy = JSON.parse(JSON.stringify(QUIZ));
-    // liste de tous les textes à traduire, avec la façon de les réécrire
-    const jobs = [];
-    const add = (obj, k) => { if(obj && typeof obj[k] === 'string' && obj[k].trim()) jobs.push({obj, k}); };
-    add(copy, 'title');
-    copy.questions.forEach(q => {
-      add(q, 'text'); add(q, 'body'); add(q, 'unit');
-      if(q.type !== 'vf') (q.choices || []).forEach((c, i) => jobs.push({obj: q.choices, k: i}));
-      (q.accepted || []).forEach((c, i) => jobs.push({obj: q.accepted, k: i}));
-    });
-    (copy.messages || []).forEach(m => { add(m, 'title'); add(m, 'body'); });
-    copy.teams.list.forEach(t => add(t, 'name'));
     busy = true; bg.querySelectorAll('[data-t]').forEach(x => x.disabled = true);
-    const prog = $('#trProg', bg); let done = 0, failed = null;
-    const worker = async () => {
-      while(jobs.length && !failed){
-        const j = jobs.shift();
-        try{ const src = j.obj[j.k]; if(typeof src === 'string' && src.trim()) j.obj[j.k] = await translateText(src, from, to); }
-        catch(err){ failed = err.message; }
-        done++; prog.textContent = `Traduction en cours... ${done}`;
-      }
-    };
-    await Promise.all([worker(), worker(), worker()]);
-    busy = false;
-    if(failed){
-      prog.innerHTML = failed === 'quota' ? '⚠️ Limite gratuite du service de traduction atteinte pour aujourd\'hui. Réessaie demain ou traduis via le prompt Claude.' : '⚠️ Le service de traduction ne répond pas. Vérifie ta connexion et réessaie.';
+    const prog = $('#trProg', bg); let copy;
+    try{ copy = await translateQuiz(QUIZ, from, to, n => prog.textContent = `Traduction en cours... ${n}`); }
+    catch(err){
+      busy = false;
+      prog.innerHTML = err.message === 'quota' ? '⚠️ Limite gratuite du service de traduction atteinte pour aujourd\'hui. Réessaie demain ou traduis via le prompt Claude.' : '⚠️ Le service de traduction ne répond pas. Vérifie ta connexion et réessaie.';
       bg.querySelectorAll('[data-t]').forEach(x => x.disabled = false); return;
     }
-    // les bonnes réponses écrites gardent aussi la version d'origine (utile pour les noms propres)
-    copy.questions.forEach(q => { if(q.type === 'vf') q.choices = to === 'en' ? ['True','False'] : ['Vrai','Faux']; });
-    copy.questions.forEach((q, qi) => { if(q.type === 'libre'){ const orig = QUIZ.questions[qi].accepted || []; q.accepted = [...new Set([...q.accepted, ...orig].filter(x => x && x.trim()))]; } });
+    busy = false;
     const nq = normalizeQuiz({...copy, id: uid(), title: `${copy.title} (${to.toUpperCase()})`, updatedAt: Date.now()});
     QUIZ = nq; saveQuiz(); bg.remove(); renderEditor(saved); toast(`Quiz traduit en ${to === 'en' ? 'anglais' : 'français'} ✅ (copie ouverte)`);
   });
@@ -1319,11 +1348,11 @@ function validateQuiz(){
 function launchGame(){
   const errs = validateQuiz();
   if(errs.length){ toast(errs[0] + (errs.length > 1 ? ` (+${errs.length-1})` : '')); return; }
-  const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
   G = {
-    room: Array.from({length:4}, () => L[Math.floor(Math.random()*L.length)]).join(''),
+    room: Array.from({length:4}, () => ABC[Math.floor(Math.random()*ABC.length)]).join(''),
     quiz: JSON.parse(JSON.stringify(QUIZ)),
-    phase:'lobby', qi:-1, players:{}, answers:{}, reveal:null, deadline:0, qStart:0, readyEnd:0
+    phase:'lobby', qi:-1, players:{}, answers:{}, reveal:null, deadline:0, qStart:0, readyEnd:0, lang: QUIZ.lang || 'fr'
   };
   connectHost(); changed();
 }
@@ -1391,14 +1420,14 @@ function teamScores(){
 }
 function qNum(quiz, qi){ return quiz.questions.slice(0, qi + 1).filter(q => !isPanel(q)).length; }
 function qTotal(quiz){ return quiz.questions.filter(q => !isPanel(q)).length; }
-function qLabel(){ return `Question ${qNum(G.quiz, G.qi)} / ${qTotal(G.quiz)}`; }
+function qLabel(){ return `Question ${qNum(G.quiz, G.qi)} / ${qTotal(G.quiz)}`; } // identique en anglais
 function curQ(){ return G.qi >= 0 ? G.quiz.questions[G.qi] : null; }
 
 function publicState(){
   const q = curQ();
   return {
     from:'host', kind:'state', room:G.room, title:G.quiz.title, phase:G.phase, qi:G.qi,
-    v: APP_VERSION, total:G.quiz.questions.length, qnum: G.qi >= 0 ? qNum(G.quiz, G.qi) : 0, qtotal: qTotal(G.quiz), panelEnd: G.panelEnd || 0, overlay: G.overlay || null, theme:G.quiz.theme || 'noel', hostNow:Date.now(), deadline:G.deadline, readyEnd:G.readyEnd,
+    v: APP_VERSION, lang: G.lang || 'fr', total:G.quiz.questions.length, qnum: G.qi >= 0 ? qNum(G.quiz, G.qi) : 0, qtotal: qTotal(G.quiz), panelEnd: G.panelEnd || 0, overlay: G.overlay || null, theme:G.quiz.theme || 'noel', hostNow:Date.now(), deadline:G.deadline, readyEnd:G.readyEnd,
     teams: G.quiz.teams.enabled ? G.quiz.teams.list : null,
     q: q && G.phase !== 'lobby' ? {type:q.type, text:q.text, choices:choicesOf(q), time:q.time, points:q.points, unit:q.unit || '', body:q.body || '', showBoard:!!q.showBoard} : null,
     answered: Object.keys(G.answers),
@@ -1531,7 +1560,7 @@ function hostTick(){
 
 function primaryAction(){
   if(!G) return;
-  ({lobby: () => Object.keys(G.players).length ? startGame() : toast('Attends au moins un joueur'),
+  ({lobby: () => G.translating ? toast('Traduction en cours...') : Object.keys(G.players).length ? startGame() : toast('Attends au moins un joueur'),
     ready: openQuestion,
     question: doReveal,
     reveal: () => { if(curQ().board === false) nextQuestion(); else { G.phase = 'leaderboard'; changed(); } },
@@ -1542,6 +1571,7 @@ function primaryAction(){
 }
 addEventListener('keydown', e => {
   if(!location.hash.startsWith('#host') || !G || ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) return;
+  if(document.querySelector('.modal-bg')) return;        // une fenêtre est ouverte : pas d'action en arrière-plan
   if(G.overlay && (e.key === 'Escape' || e.key === ' ' || e.key === 'Enter')){ e.preventDefault(); G.overlay = null; changed(false); return; }
   if(e.key === ' ' || e.key === 'Enter'){ e.preventDefault(); primaryAction(); }
 });
@@ -1554,13 +1584,14 @@ function joinLink(){ return location.href.split('#')[0] + '#join=' + G.room; }
 
 function renderHost(force = true){
   if(!G || !location.hash.startsWith('#host')) return;
+  LANG = G.lang || 'fr';
   const key = G.phase + G.qi;
   if(!force && key === lastRenderKey){ patchHost(); return; }
   lastRenderKey = key;
   const top = `<div class="topbar"><div class="row"><span class="logo">Quiz <b>Party</b></span><span class="pill">Code ${esc(G.room)}</span>
     <span class="pill">👥 ${Object.keys(G.players).length}</span><span class="pill net" id="net"></span></div>
     <div class="row">${G.phase !== 'podium' ? `<button class="btn sm warm" data-h="msg">📣 Message</button>` : ''}<button class="btn ghost sm" id="mute">${muted ? '🔇' : '🔊'}</button>
-    <button class="btn ghost sm" id="quit">Quitter</button></div></div>`;
+    <button class="btn ghost sm" id="quit">${L('Quitter', 'Quit')}</button></div></div>`;
   const P = G.phase;
   let body = '';
   if(P === 'lobby') body = hostLobby();
@@ -1588,6 +1619,7 @@ function hostClicks(e){
   if(a === 'msg') openMsgMenu();
   if(a === 'closeOvl'){ G.overlay = null; changed(false); }
   if(a === 'bots') addBots(5);
+  if(a === 'lang') setGameLang(b.dataset.l);
   if(a === 'tab') window.open(joinLink(), '_blank', 'noopener');
   if(a === 'copy'){ navigator.clipboard?.writeText(joinLink()).then(() => toast('Lien copié 📋'), () => toast(joinLink())); }
   if(a === 'kick'){ delete G.players[b.dataset.id]; changed(); }
@@ -1605,18 +1637,37 @@ function ptag(p, kick = true){
   return `<span class="ptag wiggle" style="animation-delay:0s,${(-Math.random()*2.4).toFixed(2)}s" ${kick ? `data-h="kick" data-id="${esc(p.id)}" title="Cliquer pour retirer"` : ''}><span style="font-size:20px">${p.emoji}</span>${esc(p.name)}</span>`;
 }
 
+async function setGameLang(lang){
+  if(!G || G.translating || lang === (G.lang || 'fr')) return;
+  const src = G.quizSrc || G.quiz, srcLang = src.lang || 'fr';
+  if(lang === srcLang){ G.quiz = src; delete G.quizSrc; G.lang = lang; changed(); return; }
+  const game = G;
+  G.translating = true; changed();
+  try{
+    const tq = await translateQuiz(src, srcLang, lang, n => { const el = $('#langProg'); if(el) el.textContent = `Traduction du quiz... ${n}`; });
+    if(G !== game) return;                               // partie quittée pendant la traduction
+    tq.theme = src.theme;
+    G.quizSrc = src; G.quiz = tq; G.lang = lang;
+    toast(lang === 'en' ? 'Quiz traduit en anglais ✅' : 'Quiz traduit en français ✅');
+  }catch(err){
+    if(G !== game) return;
+    toast(err.message === 'quota' ? '⚠️ Limite gratuite de traduction atteinte aujourd\'hui' : '⚠️ Traduction impossible, vérifie la connexion');
+  }
+  G.translating = false; changed();
+}
+
 function hostLobby(){
   const players = Object.values(G.players);
   const T = G.quiz.teams;
   const list = T.enabled
     ? `<div class="teams-lobby">${T.list.map(t => { const m = players.filter(p => p.team === t.id);
-        return `<div class="team-col" style="border-color:${t.color};background:${t.color}22"><h3><span>${esc(t.name)}</span><span class="mute">${m.length}</span></h3>${m.map(p => ptag(p)).join('') || '<span class="mute">Personne encore</span>'}</div>`; }).join('')}</div>`
+        return `<div class="team-col" style="border-color:${t.color};background:${t.color}22"><h3><span>${esc(t.name)}</span><span class="mute">${m.length}</span></h3>${m.map(p => ptag(p)).join('') || `<span class="mute">${L('Personne encore', 'Nobody yet')}</span>`}</div>`; }).join('')}</div>`
     : arenaHTML(players);
   return `<div class="center">
     <p class="mute" style="font-size:18px">${TH(G.quiz.theme).titleIcon} ${esc(G.quiz.title)}</p>
     <div class="row" style="justify-content:center;gap:28px">
       ${qrSVG(joinLink())}
-      <div style="text-align:left"><p style="font-size:18px">Scanne le QR code ou entre le code</p><div class="code">${esc(G.room)}</div>
+      <div style="text-align:left"><p style="font-size:18px">${L('Scanne le QR code ou entre le code', 'Scan the QR code or enter the code')}</p><div class="code">${esc(G.room)}</div>
       <p class="mute" style="font-size:13px;word-break:break-all;max-width:420px">${esc(joinLink())}</p></div>
     </div>
     <div class="row" style="justify-content:center">
@@ -1625,20 +1676,25 @@ function hostLobby(){
       <button class="btn ghost sm" data-h="bots">🤖 +5 bots de test</button>
       ${T.enabled ? `<button class="btn ghost sm" data-h="balance">⚖️ Équilibrer les équipes</button>` : ''}
     </div>
-    <p class="mute" style="font-size:14px;margin-top:-6px">${players.length ? `${TH(G.quiz.theme).react} Les joueurs peuvent lancer ${TH(G.quiz.theme).projName} depuis leur téléphone` : ''}</p>
+    <p class="mute" style="font-size:14px;margin-top:-6px">${players.length ? `${TH(G.quiz.theme).react} ${L(`Les joueurs peuvent lancer ${TH(G.quiz.theme).projName} depuis leur téléphone`, `Players can throw ${TH(G.quiz.theme).projEn} from their phone`)}` : ''}</p>
     ${list}
-    <button class="btn big warm" data-h="primary" ${players.length ? '' : 'disabled'}>C'est parti ! <span class="kbd">Espace</span></button>
+    <div class="row" style="justify-content:center;gap:8px">
+      <button class="btn sm ${(G.lang || 'fr') === 'fr' ? 'warm' : 'ghost'}" data-h="lang" data-l="fr" ${G.translating ? 'disabled' : ''}>🇫🇷 Français</button>
+      <button class="btn sm ${G.lang === 'en' ? 'warm' : 'ghost'}" data-h="lang" data-l="en" ${G.translating ? 'disabled' : ''}>🇬🇧 English</button>
+      <span class="mute" id="langProg" style="font-size:14px">${G.translating ? 'Traduction du quiz...' : ''}</span>
+    </div>
+    <button class="btn big warm" data-h="primary" ${players.length && !G.translating ? '' : 'disabled'}>${L("C'est parti !", "Let's go!")} <span class="kbd">${L('Espace', 'Space')}</span></button>
   </div>`;
 }
 
 function hostReady(){
   const q = curQ(), T = TYPES[q.type];
   return `<div class="center">
-    <div class="pill" style="font-size:16px">${T.icon} ${T.label}</div>
+    <div class="pill" style="font-size:16px">${T.icon} ${tl(T)}</div>
     <p class="mute" style="font-size:20px">${qLabel()}</p>
     <div class="q-text">${esc(q.text)}</div>
     <div class="ready-num">${Math.max(1, Math.ceil((G.readyEnd - Date.now()) / 1000))}</div>
-    <button class="btn ghost sm" data-h="primary">Ouvrir les réponses maintenant ⏭</button></div>`;
+    <button class="btn ghost sm" data-h="primary">${L('Ouvrir les réponses maintenant', 'Open answers now')} ⏭</button></div>`;
 }
 
 function tilesHTML(q, reveal){
@@ -1656,12 +1712,12 @@ function tilesHTML(q, reveal){
 function hostQuestion(){
   const q = curQ(), T = TYPES[q.type];
   return `<div class="stage">
-    <div class="q-top"><span class="pill">${T.icon} ${T.label}</span><span class="pill">${qLabel()}</span>
-      <button class="btn ghost sm" data-h="primary">Révéler ⏭</button></div>
+    <div class="q-top"><span class="pill">${T.icon} ${tl(T)}</span><span class="pill">${qLabel()}</span>
+      <button class="btn ghost sm" data-h="primary">${L('Révéler', 'Reveal')} ⏭</button></div>
     <div class="q-text">${esc(q.text)}</div>
     <div class="q-mid">${timerSVG(130)}
-      <div class="counter"><div class="n"><span id="ansCount">${Object.keys(G.answers).length}</span><span class="mute" style="font-size:28px">/<span id="ansTotal">${Object.keys(G.players).length}</span></span></div><div class="mute">réponses</div></div></div>
-    ${q.type === 'estimation' ? `<p class="center mute" style="flex:0;font-size:22px">🔢 Tapez votre estimation sur votre téléphone${q.unit ? ' (en ' + esc(q.unit) + ')' : ''}</p>` : q.type === 'libre' ? `<p class="center mute" style="flex:0;font-size:22px">✍️ Écrivez votre réponse sur votre téléphone</p>` : tilesHTML(q, null)}
+      <div class="counter"><div class="n"><span id="ansCount">${Object.keys(G.answers).length}</span><span class="mute" style="font-size:28px">/<span id="ansTotal">${Object.keys(G.players).length}</span></span></div><div class="mute">${L('réponses', 'answers')}</div></div></div>
+    ${q.type === 'estimation' ? `<p class="center mute" style="flex:0;font-size:22px">🔢 ${L('Tapez votre estimation sur votre téléphone', 'Type your estimate on your phone')}${q.unit ? ' (' + L('en ', 'in ') + esc(q.unit) + ')' : ''}</p>` : q.type === 'libre' ? `<p class="center mute" style="flex:0;font-size:22px">✍️ ${L('Écrivez votre réponse sur votre téléphone', 'Write your answer on your phone')}</p>` : tilesHTML(q, null)}
   </div>`;
 }
 
@@ -1669,28 +1725,28 @@ function hostReveal(){
   const q = curQ(), R = G.reveal, T = TYPES[q.type];
   const name = pid => G.players[pid] ? `${G.players[pid].emoji} ${esc(G.players[pid].name)}` : '?';
   let msg = '';
-  if(q.type === 'majorite') msg = R.winners.length ? '🐑 La majorité a parlé !' : 'Personne n\'a répondu';
-  if(q.type === 'minorite') msg = R.winners.length ? '🦄 Les rebelles marquent !' : 'Pas de minorité cette fois, 0 point';
-  if(q.type === 'sondage') msg = '📊 Résultats du sondage';
+  if(q.type === 'majorite') msg = R.winners.length ? L('🐑 La majorité a parlé !', '🐑 The majority has spoken!') : L('Personne n\'a répondu', 'Nobody answered');
+  if(q.type === 'minorite') msg = R.winners.length ? L('🦄 Les rebelles marquent !', '🦄 The rebels score!') : L('Pas de minorité cette fois, 0 point', 'No minority this time, 0 points');
+  if(q.type === 'sondage') msg = L('📊 Résultats du sondage', '📊 Poll results');
   const fastest = Object.entries(R.gains).filter(([,g]) => g.ok).sort((a,b) => a[1].ms - b[1].ms)[0];
   let body;
   if(q.type === 'estimation'){
-    body = `<div class="center" style="flex:0;gap:8px"><p class="mute">La bonne réponse</p><div class="est-box">${fmt(R.target)} ${esc(R.unit)}</div></div>
-      <div class="card" style="max-width:600px;margin:0 auto;width:100%">${R.closest.length ? R.closest.map((c,i) => `<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)"><b style="width:30px">${i===0?'🏆':ord(i+1)}</b><span class="grow">${name(c.pid)}</span><b>${fmt(c.v)}</b><span class="mute" style="width:110px;text-align:right">écart ${fmt(c.d)}</span></div>`).join('') : '<p class="mute">Aucune réponse</p>'}</div>`;
+    body = `<div class="center" style="flex:0;gap:8px"><p class="mute">${L('La bonne réponse', 'The right answer')}</p><div class="est-box">${fmt(R.target)} ${esc(R.unit)}</div></div>
+      <div class="card" style="max-width:600px;margin:0 auto;width:100%">${R.closest.length ? R.closest.map((c,i) => `<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)"><b style="width:30px">${i===0?'🏆':ord(i+1)}</b><span class="grow">${name(c.pid)}</span><b>${fmt(c.v)}</b><span class="mute" style="width:110px;text-align:right">${L('écart', 'off by')} ${fmt(c.d)}</span></div>`).join('') : `<p class="mute">${L('Aucune réponse', 'No answers')}</p>`}</div>`;
   } else if(q.type === 'libre'){
     const okN = Object.values(R.gains).filter(g => g.ok).length, tot = Object.keys(R.gains).length;
-    body = `<div class="center" style="flex:0;gap:8px"><p class="mute">La bonne réponse</p><div class="est-box">${esc(R.accepted[0] || '')}</div>
-        ${R.accepted.length > 1 ? `<p class="mute">Aussi accepté : ${R.accepted.slice(1).map(esc).join(', ')}</p>` : ''}
-        <p style="font-size:20px"><b style="color:var(--ok)">${okN}</b> bonne${okN > 1 ? 's' : ''} réponse${okN > 1 ? 's' : ''} sur ${tot}</p></div>
-      <div class="row" style="justify-content:center;max-width:900px;margin:0 auto">${R.given.map(g => `<span class="pill" style="font-size:18px;padding:10px 16px;background:${g.ok ? 'rgba(34,197,94,.25)' : 'rgba(239,68,68,.2)'};border-color:${g.ok ? 'var(--ok)' : 'rgba(239,68,68,.5)'}">${g.ok ? '✓' : '✗'} ${esc(g.text)}${g.n > 1 ? ` <span class="mute">×${g.n}</span>` : ''}</span>`).join('') || '<p class="mute">Aucune réponse</p>'}</div>`;
+    body = `<div class="center" style="flex:0;gap:8px"><p class="mute">${L('La bonne réponse', 'The right answer')}</p><div class="est-box">${esc(R.accepted[0] || '')}</div>
+        ${R.accepted.length > 1 ? `<p class="mute">${L('Aussi accepté', 'Also accepted')} : ${R.accepted.slice(1).map(esc).join(', ')}</p>` : ''}
+        <p style="font-size:20px"><b style="color:var(--ok)">${okN}</b> ${L(`bonne${okN > 1 ? 's' : ''} réponse${okN > 1 ? 's' : ''} sur`, `correct answer${okN > 1 ? 's' : ''} out of`)} ${tot}</p></div>
+      <div class="row" style="justify-content:center;max-width:900px;margin:0 auto">${R.given.map(g => `<span class="pill" style="font-size:18px;padding:10px 16px;background:${g.ok ? 'rgba(34,197,94,.25)' : 'rgba(239,68,68,.2)'};border-color:${g.ok ? 'var(--ok)' : 'rgba(239,68,68,.5)'}">${g.ok ? '✓' : '✗'} ${esc(g.text)}${g.n > 1 ? ` <span class="mute">×${g.n}</span>` : ''}</span>`).join('') || `<p class="mute">${L('Aucune réponse', 'No answers')}</p>`}</div>`;
   } else body = tilesHTML(q, R);
   return `<div class="stage">
-    <div class="q-top"><span class="pill">${T.icon} ${T.label}</span><span class="pill">${qLabel()}</span>
-      <button class="btn" data-h="primary">${q.board === false ? (G.qi >= G.quiz.questions.length - 1 ? 'Podium final 🎉' : 'Suite ➜') : 'Classement ➜'} <span class="kbd">Espace</span></button></div>
+    <div class="q-top"><span class="pill">${T.icon} ${tl(T)}</span><span class="pill">${qLabel()}</span>
+      <button class="btn" data-h="primary">${q.board === false ? (G.qi >= G.quiz.questions.length - 1 ? L('Podium final 🎉', 'Final podium 🎉') : L('Suite ➜', 'Next ➜')) : L('Classement ➜', 'Leaderboard ➜')} <span class="kbd">${L('Espace', 'Space')}</span></button></div>
     <div class="q-text" style="font-size:clamp(22px,3vw,36px)">${esc(q.text)}</div>
     ${msg ? `<h2 style="text-align:center">${msg}</h2>` : ''}
     ${body}
-    ${fastest && q.speed ? `<p style="text-align:center" class="mute">⚡ Le plus rapide : <b style="color:#fff">${name(fastest[0])}</b> en ${(fastest[1].ms/1000).toFixed(1).replace('.',',')} s</p>` : ''}
+    ${fastest && q.speed ? `<p style="text-align:center" class="mute">⚡ ${L('Le plus rapide', 'Fastest')} : <b style="color:#fff">${name(fastest[0])}</b> ${L('en', 'in')} ${L((fastest[1].ms/1000).toFixed(1).replace('.',','), (fastest[1].ms/1000).toFixed(1))} s</p>` : ''}
   </div>`;
 }
 
@@ -1698,11 +1754,11 @@ function hostLeaderboard(){
   const R = ranked().slice(0, 8), last = G.qi >= G.quiz.questions.length - 1;
   const TS = teamScores(), maxT = TS ? Math.max(1, ...TS.map(t => t.score)) : 1;
   return `<div class="stage">
-    <div class="q-top"><h2>🏆 Classement</h2><button class="btn ${last ? 'warm' : ''}" data-h="primary">${last ? 'Podium final 🎉' : 'Question suivante ➜'} <span class="kbd">Espace</span></button></div>
+    <div class="q-top"><h2>🏆 ${L('Classement', 'Leaderboard')}</h2><button class="btn ${last ? 'warm' : ''}" data-h="primary">${last ? L('Podium final 🎉', 'Final podium 🎉') : L('Question suivante ➜', 'Next question ➜')} <span class="kbd">${L('Espace', 'Space')}</span></button></div>
     ${TS ? `<div class="team-bars">${TS.map(t => `<div class="team-bar"><div class="tb-name" style="color:${t.color}">${esc(t.name)}</div><div class="tb-track"><div class="tb-fill" style="background:${t.color}" data-w="${t.score/maxT*100}"></div></div><div class="tb-sc">${fmt(t.score)}</div></div>`).join('')}</div>` : ''}
     <div class="lb" style="height:${R.length * 72}px">${R.map(p => `
       <div class="lb-row ${p.rank === 1 ? 'top1' : ''}" data-id="${esc(p.id)}" data-rank="${p.rank}" data-prev="${Math.min(p.prevRank || p.rank, 9)}" style="top:${((Math.min(p.prevRank || p.rank, 9)) - 1) * 72}px">
-        <span class="rk">${p.rank}</span><span class="em">${p.emoji}</span><span class="nm">${esc(p.name)}${p.streak >= 2 ? ` <span title="Série">🔥${p.streak}</span>` : ''}</span>
+        <span class="rk">${p.rank}</span><span class="em">${p.emoji}</span><span class="nm">${esc(p.name)}${p.streak >= 2 ? ` <span>🔥${p.streak}</span>` : ''}</span>
         <span class="gain">${p.lastGain ? '+' + fmt(p.lastGain) : ''}</span><span class="sc" data-from="${p.score - p.lastGain}" data-to="${p.score}">${fmt(p.score - p.lastGain)}</span></div>`).join('')}</div>
   </div>`;
 }
@@ -1735,6 +1791,7 @@ function openMsgMenu(){
 let ovlShownId = null, ovlDismissed = null;
 function renderOverlay(){
   const isHost = location.hash.startsWith('#host');
+  LANG = isHost ? ((G && G.lang) || 'fr') : ((S && S.lang) || LANG);
   const o = isHost ? (G && G.overlay) : (S && S.overlay);
   let el = document.getElementById('ovl');
   if(!o || (!isHost && ovlDismissed === o.id)){ if(el) el.remove(); ovlShownId = null; return; }
@@ -1744,7 +1801,7 @@ function renderOverlay(){
   if(isHost){
     el.className = 'ovl-host';
     el.innerHTML = `<div class="center" style="gap:22px"><div class="panel-title">${esc(o.title)}</div>${o.body ? `<p class="panel-body">${nl2br(o.body)}</p>` : ''}
-      ${o.showBoard ? boardMini(5) : ''}<button class="btn warm" data-h="closeOvl">Fermer le message <span class="kbd">Échap</span></button></div>`;
+      ${o.showBoard ? boardMini(5) : ''}<button class="btn warm" data-h="closeOvl">${L('Fermer le message', 'Close message')} <span class="kbd">${L('Échap', 'Esc')}</span></button></div>`;
     el.onclick = hostClicks;
     setTimeout(() => el.querySelectorAll('.tb-fill').forEach(b => b.style.width = b.dataset.w + '%'), 60);
   } else {
@@ -1773,7 +1830,7 @@ function renderStrip(on){
 function boardMini(n = 5){
   const R = ranked().slice(0, n), TS = teamScores(), maxT = TS ? Math.max(1, ...TS.map(t => t.score)) : 1;
   return `${TS ? `<div class="team-bars" style="max-width:640px">${TS.map(t => `<div class="team-bar"><div class="tb-name" style="color:${t.color}">${esc(t.name)}</div><div class="tb-track"><div class="tb-fill" style="background:${t.color}" data-w="${t.score/maxT*100}"></div></div><div class="tb-sc">${fmt(t.score)}</div></div>`).join('')}</div>` : ''}
-    <div class="card" style="width:100%;max-width:640px;text-align:left;padding:12px 18px">${R.map(p => `<div class="row" data-id="${esc(p.id)}" style="padding:8px 0;font-size:20px;font-weight:600;border-bottom:1px solid var(--line)"><b style="width:40px">${['🥇','🥈','🥉'][p.rank-1] || p.rank}</b><span>${p.emoji}</span><span class="grow">${esc(p.name)}</span><b>${fmt(p.score)}</b></div>`).join('') || '<p class="mute">Pas encore de joueurs</p>'}</div>`;
+    <div class="card" style="width:100%;max-width:640px;text-align:left;padding:12px 18px">${R.map(p => `<div class="row" data-id="${esc(p.id)}" style="padding:8px 0;font-size:20px;font-weight:600;border-bottom:1px solid var(--line)"><b style="width:40px">${['🥇','🥈','🥉'][p.rank-1] || p.rank}</b><span>${p.emoji}</span><span class="grow">${esc(p.name)}</span><b>${fmt(p.score)}</b></div>`).join('') || `<p class="mute">${L('Pas encore de joueurs', 'No players yet')}</p>`}</div>`;
 }
 function hostPanel(){
   const q = curQ(), last = G.qi >= G.quiz.questions.length - 1;
@@ -1782,7 +1839,7 @@ function hostPanel(){
     ${q.body ? `<p class="panel-body">${nl2br(q.body)}</p>` : ''}
     ${q.showBoard ? boardMini(5) : ''}
     ${G.panelEnd ? `<div class="mini-timer" style="width:100%;max-width:520px"><div id="panelBar"></div></div>` : ''}
-    <button class="btn ${last ? 'warm' : ''}" data-h="primary">${last ? 'Podium final 🎉' : 'Continuer ➜'} <span class="kbd">Espace</span></button>
+    <button class="btn ${last ? 'warm' : ''}" data-h="primary">${last ? L('Podium final 🎉', 'Final podium 🎉') : L('Continuer ➜', 'Continue ➜')} <span class="kbd">${L('Espace', 'Space')}</span></button>
   </div>`;
 }
 
@@ -1791,15 +1848,15 @@ function hostPodium(){
   const slot = (p, h, medal, bg, delay) => p ? `<div class="pod"><div class="who" style="animation-delay:${delay}ms"><span class="em">${p.emoji}</span><div class="nm">${esc(p.name)}</div><div class="sc">${fmt(p.score)} pts</div></div>
     <div class="block" data-h2="${h}" style="background:${bg}">${medal}</div></div>` : '<div class="pod"></div>';
   return `<div class="center" style="justify-content:flex-start;padding-top:30px">
-    <h1>🎉 Fin de partie</h1>
-    ${TS ? `<div class="pill" style="font-size:18px;padding:10px 18px;border-color:${TS[0].color}">Équipe gagnante : <b style="color:${TS[0].color}">${esc(TS[0].name)}</b> · ${fmt(TS[0].score)} pts</div>` : ''}
+    <h1>🎉 ${L('Fin de partie', 'Game over')}</h1>
+    ${TS ? `<div class="pill" style="font-size:18px;padding:10px 18px;border-color:${TS[0].color}">${L('Équipe gagnante', 'Winning team')} : <b style="color:${TS[0].color}">${esc(TS[0].name)}</b> · ${fmt(TS[0].score)} pts</div>` : ''}
     <div class="podium">
       ${slot(R[1], 150, '2', 'linear-gradient(#C0C4D6,#8D92A8)', 900)}
       ${slot(R[0], 220, '1', 'linear-gradient(#F5C451,#D08A1E)', 1500)}
       ${slot(R[2], 100, '3', 'linear-gradient(#E0A070,#A8643A)', 400)}
     </div>
     ${R.length > 3 ? `<div class="card" style="width:100%;max-width:600px;text-align:left">${R.slice(3).map(p => `<div class="row" style="padding:6px 0"><b style="width:36px">${ord(p.rank)}</b><span>${p.emoji}</span><span class="grow">${esc(p.name)}</span><b>${fmt(p.score)}</b></div>`).join('')}</div>` : ''}
-    <div class="row" style="justify-content:center"><button class="btn" data-h="replay">🔁 Rejouer avec les mêmes joueurs</button><button class="btn ghost" data-h="editor">✏️ Retour à l'éditeur</button></div>
+    <div class="row" style="justify-content:center"><button class="btn" data-h="replay">🔁 ${L('Rejouer avec les mêmes joueurs', 'Play again, same players')}</button><button class="btn ghost" data-h="editor">✏️ ${L("Retour à l'éditeur", 'Back to editor')}</button></div>
   </div>`;
 }
 
@@ -1835,11 +1892,18 @@ function updateTimers(){
    JOUEUR
    ========================================================= */
 let S = null;            // dernier état reçu
+let lastStateAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden || !location.hash.startsWith('#join=') || !transport) return;
+  transport.send({kind:'hello'});                      // retour de veille : on redemande l'état tout de suite
+  setTimeout(() => { if(Date.now() - lastStateAt > 4000){ transport.kick(); transport.send({kind:'hello'}); } }, 2500);
+});
 let ME = null;           // {id,name,emoji,team}
 let myAnswer = null;     // {qi, value, at}
 let playerKey = '';
 
 function startPlayer(code){
+  LANG = (navigator.language || 'fr').toLowerCase().startsWith('en') ? 'en' : 'fr';
   ME = sess.get('quiz-me-' + code, null) || {id: uid(), name: sess.get('quiz-lastname', ''), emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)], team: null, joined:false};
   myAnswer = sess.get('quiz-ans-' + code, null);
   S = null; playerKey = '';
@@ -1850,29 +1914,36 @@ function startPlayer(code){
     if(!m || m.from !== 'host' || m.kind !== 'state' || m.room !== code) return;
     if(m.v && m.v > APP_VERSION && sess.get('quiz-reloaded', '') !== m.v){ // version du téléphone en cache plus ancienne que celle de l'animateur
       sess.set('quiz-reloaded', m.v); location.replace(location.pathname + '?v=' + encodeURIComponent(m.v) + location.hash); return; }
+    lastStateAt = Date.now();
     clockOffset = m.hostNow - Date.now();
     const prevPhase = S && S.phase + S.qi;
-    S = m; renderOverlay();
+    S = m; LANG = S.lang || 'fr'; renderOverlay();
+    if(playerKey && !playerKey.startsWith('join')) playerFx();   // ré-applique l'ambiance de l'animateur à chaque mise à jour
     if(ME.joined && !S.players.find(p => p.id === ME.id) && S.phase === 'lobby' && Date.now() - (ME.joinedAt || 0) > 2500){ ME.joined = false; saveMe(); } // retiré par l'animateur
     if((S.phase === 'lobby' || S.phase === 'ready') && myAnswer && myAnswer.qi >= S.qi){ myAnswer = null; sess.set('quiz-ans-' + code, null); }
     if(prevPhase !== S.phase + S.qi && S.phase === 'reveal'){ const me = S.players.find(p => p.id === ME.id); if(me && me.lastOk === true && navigator.vibrate) navigator.vibrate([60,40,60]); }
     renderPlayer();
   });
   fx({theme:'noel', snow:.5});
-  app.innerHTML = `<div class="center"><div class="logo">Quiz <b>Party</b></div><h2>Connexion à ${esc(code)}...</h2><p class="mute" id="wait">Recherche de la partie</p></div>`;
+  app.innerHTML = `<div class="center"><div class="logo">Quiz <b>Party</b></div><h2>${L('Connexion à', 'Connecting to')} ${esc(code)}...</h2><p class="mute" id="wait">${L('Recherche de la partie', 'Looking for the game')}</p></div>`;
   transport.send({kind:'hello'});
   if(ME.joined) transport.send({kind:'join', ...ME});
   stopTimers();
   tickers.push(setInterval(updateTimers, 100));
-  tickers.push(setTimeout(() => { if(!S){ const w = $('#wait'); if(w) w.innerHTML = 'Aucune partie trouvée avec ce code.<br>Vérifie le code ou que l\'animateur est bien sur la page.<br><br><a href="#join" style="color:#fff">Changer de code</a>'; } }, 8000));
+  lastStateAt = Date.now();
+  tickers.push(setInterval(() => {                      // le grand écran envoie un signal toutes les 3 s
+    if(Date.now() - lastStateAt > 9000){ setNet('connecting'); transport.kick(); transport.send({kind:'hello'}); lastStateAt = Date.now(); }
+  }, 3000));
+  tickers.push(setTimeout(() => { if(!S){ const w = $('#wait'); if(w) w.innerHTML = L('Aucune partie trouvée avec ce code.<br>Vérifie le code ou que l\'animateur est bien sur la page.<br><br><a href="#join" style="color:#fff">Changer de code</a>', 'No game found with this code.<br>Check the code, or that the host is on the game page.<br><br><a href="#join" style="color:#fff">Change code</a>'); } }, 8000));
 }
+function playerFx(){ const P = S.phase; fx({theme: S.theme, snow: {lobby:.8, podium:1, ready:.4, panel:.7}[P] ?? .25, sleigh: P === 'lobby' || P === 'podium', hills: P === 'lobby' || P === 'podium'}); }
 const saveMe = () => { sess.set('quiz-me-' + S.room, ME); sess.set('quiz-lastname', ME.name); };
 
 function renderPlayer(){
   const meP = S.players.find(p => p.id === ME.id);
   const inGame = ME.joined && meP;
   const answeredNow = S.answered.includes(ME.id) || (myAnswer && myAnswer.qi === S.qi);
-  const key = !inGame ? 'join' + JSON.stringify(S.teams) : [S.phase, S.qi, answeredNow, S.phase === 'lobby' ? S.players.length + (meP.team || '') : ''].join('|');
+  const key = !inGame ? 'join' + JSON.stringify(S.teams) + S.lang + S.theme : [S.phase, S.qi, answeredNow, S.lang, S.theme, S.phase === 'lobby' ? S.players.length + (meP.team || '') : ''].join('|');
   if(key === playerKey) return;
   const typing = document.activeElement && ['nm','est','txt'].includes(document.activeElement.id);
   if(typing && key.startsWith('join') && playerKey.startsWith('join')) return;
@@ -1883,25 +1954,25 @@ function renderPlayer(){
   const P = S.phase;
   if(P === 'lobby'){
     const team = S.teams && S.teams.find(t => t.id === meP.team);
-    body = `<div class="p-feedback" style="background:rgba(255,255,255,.05)"><div class="p-avatar" id="pAv" title="Touche-moi !">${meP.emoji}</div><div class="big">Tu es dans la partie !</div>
+    body = `<div class="p-feedback" style="background:rgba(255,255,255,.05)"><div class="p-avatar" id="pAv">${meP.emoji}</div><div class="big">${L('Tu es dans la partie !', "You're in!")}</div>
       ${team ? `<div class="pill" style="border-color:${team.color};color:${team.color};font-size:16px">${esc(team.name)}</div>` : ''}
-      <p class="mute">${S.players.length} joueur${S.players.length > 1 ? 's' : ''} connecté${S.players.length > 1 ? 's' : ''}. Regarde le grand écran, ça va commencer.</p>
+      <p class="mute">${L(`${S.players.length} joueur${S.players.length > 1 ? 's' : ''} connecté${S.players.length > 1 ? 's' : ''}. Regarde le grand écran, ça va commencer.`, `${S.players.length} player${S.players.length > 1 ? 's' : ''} connected. Watch the big screen, it's about to start.`)}</p>
       ${reactBlock()}</div>`;
   }
-  if(P === 'ready') body = `<div class="p-feedback" style="background:rgba(255,255,255,.05)"><p class="mute">Question ${S.qnum} / ${S.qtotal}</p><div class="pill">${TYPES[S.q.type].icon} ${TYPES[S.q.type].label}</div><div class="emo" style="animation:pulse 1s infinite">⏳</div><div class="p-q" style="font-size:22px">${esc(S.q.text)}</div><p class="mute">Prépare-toi...</p></div>`;
+  if(P === 'ready') body = `<div class="p-feedback" style="background:rgba(255,255,255,.05)"><p class="mute">Question ${S.qnum} / ${S.qtotal}</p><div class="pill">${TYPES[S.q.type].icon} ${tl(TYPES[S.q.type])}</div><div class="emo" style="animation:pulse 1s infinite">⏳</div><div class="p-q" style="font-size:22px">${esc(S.q.text)}</div><p class="mute">${L('Prépare-toi...', 'Get ready...')}</p></div>`;
   if(P === 'question'){
     if(answeredNow){
       const t = myAnswer && myAnswer.qi === S.qi ? myAnswer.ms : null;
-      body = `<div class="mini-timer"><div></div></div><div class="p-feedback" style="background:rgba(99,102,241,.2)"><div class="emo">🚀</div><div class="big">Réponse envoyée</div>
-        ${t != null ? `<p class="mute">⚡ en ${(t/1000).toFixed(1).replace('.',',')} s</p>` : ''}<p class="mute">On attend les autres...</p></div>`;
+      body = `<div class="mini-timer"><div></div></div><div class="p-feedback" style="background:rgba(99,102,241,.2)"><div class="emo">🚀</div><div class="big">${L('Réponse envoyée', 'Answer sent')}</div>
+        ${t != null ? `<p class="mute">⚡ ${L('en', 'in')} ${L((t/1000).toFixed(1).replace('.',','), (t/1000).toFixed(1))} s</p>` : ''}<p class="mute">${L('On attend les autres...', 'Waiting for the others...')}</p></div>`;
     } else if(S.q.type === 'libre'){
       body = `<div class="mini-timer"><div></div></div><p style="font-weight:700;font-size:20px;text-align:center">${esc(S.q.text)}</p>
-        <form class="p-feedback" id="txtForm" style="background:rgba(255,255,255,.05);flex:0;padding:20px"><input id="txt" type="text" maxlength="60" enterkeyhint="send" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false" placeholder="Ta réponse" style="font-size:26px;text-align:center;font-weight:700">
-        <button type="submit" class="btn big warm" style="width:100%">Valider</button></form>`;
+        <form class="p-feedback" id="txtForm" style="background:rgba(255,255,255,.05);flex:0;padding:20px"><input id="txt" type="text" maxlength="60" enterkeyhint="send" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false" placeholder="${L('Ta réponse', 'Your answer')}" style="font-size:26px;text-align:center;font-weight:700">
+        <button type="submit" class="btn big warm" style="width:100%">${L('Valider', 'Submit')}</button></form>`;
     } else if(S.q.type === 'estimation'){
       body = `<div class="mini-timer"><div></div></div><p style="font-weight:700;font-size:20px;text-align:center">${esc(S.q.text)}</p>
-        <div class="p-feedback" style="background:rgba(255,255,255,.05);flex:0;padding:20px"><input id="est" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="Ton estimation" style="font-size:32px;text-align:center;font-weight:700">
-        ${S.q.unit ? `<p class="mute">en ${esc(S.q.unit)}</p>` : ''}<button class="btn big warm" id="estGo" style="width:100%">Valider</button></div>`;
+        <div class="p-feedback" style="background:rgba(255,255,255,.05);flex:0;padding:20px"><input id="est" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="${L('Ton estimation', 'Your estimate')}" style="font-size:32px;text-align:center;font-weight:700">
+        ${S.q.unit ? `<p class="mute">${L('en', 'in')} ${esc(S.q.unit)}</p>` : ''}<button class="btn big warm" id="estGo" style="width:100%">${L('Valider', 'Submit')}</button></div>`;
     } else {
       body = `<div class="mini-timer"><div></div></div><p style="font-weight:700;font-size:18px;text-align:center">${esc(S.q.text)}</p>
         <div class="p-tiles">${S.q.choices.map((c,i) => `<button class="p-tile" data-v="${i}" style="background:${COLORS[i]};animation-delay:${i*50}ms"><span class="shape">${SHAPES[i]}</span><span>${esc(c)}</span></button>`).join('')}</div>`;
@@ -1916,12 +1987,12 @@ function renderPlayer(){
   if(P === 'podium'){
     const top = meP.rank <= 3;
     body = `<div class="p-feedback" style="background:${top ? 'linear-gradient(160deg,#F5C451,#D08A1E)' : 'rgba(255,255,255,.06)'}">
-      <div class="emo">${['🥇','🥈','🥉'][meP.rank-1] || '🎈'}</div><div class="big">${ord(meP.rank)} sur ${S.players.length}</div><div class="pts">${fmt(meP.score)} pts</div>
-      ${S.teamScores ? `<p>Équipe gagnante : <b>${esc(S.teamScores[0].name)}</b></p>` : ''}<p style="opacity:.8">Merci d'avoir joué !</p>${reactBlock()}</div>`;
+      <div class="emo">${['🥇','🥈','🥉'][meP.rank-1] || '🎈'}</div><div class="big">${ord(meP.rank)} ${L('sur', 'of')} ${S.players.length}</div><div class="pts">${fmt(meP.score)} pts</div>
+      ${S.teamScores ? `<p>${L('Équipe gagnante', 'Winning team')} : <b>${esc(S.teamScores[0].name)}</b></p>` : ''}<p style="opacity:.8">${L("Merci d'avoir joué !", 'Thanks for playing!')}</p>${reactBlock()}</div>`;
     if(top) setTimeout(() => confetti(140), 300);
   }
   app.innerHTML = `<div class="p-wrap">${head}${body}</div>`;
-  fx({theme: S.theme, snow: {lobby:.8, podium:1, ready:.4, panel:.7}[P] ?? .25, sleigh: P === 'lobby' || P === 'podium', hills: P === 'lobby' || P === 'podium'});
+  playerFx();
   playerCelebrate(P, meP);
   requestAnimationFrame(() => setTimeout(() => document.querySelectorAll('.p-res .bar').forEach(b => b.style.width = b.dataset.w + '%'), 80));
   app.onclick = e => {
@@ -1932,11 +2003,11 @@ function renderPlayer(){
     if(e.target.id === 'estGo') sendEst();
   };
   setNet(NET);
-  const tf = $('#txtForm'); if(tf) tf.onsubmit = e => { e.preventDefault(); const v = $('#txt').value.trim(); if(!v) return toast('Écris une réponse'); $('#txt').blur(); sendAnswer(v); };
+  const tf = $('#txtForm'); if(tf) tf.onsubmit = e => { e.preventDefault(); const v = $('#txt').value.trim(); if(!v) return toast(L('Écris une réponse', 'Type an answer')); $('#txt').blur(); sendAnswer(v); };
   const est = $('#est'); if(est) est.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); sendEst(); } });
   updateTimers();
 }
-function sendEst(){ const v = $('#est').value.replace(',', '.').replace(/\s/g, ''); if(v === '' || !isFinite(+v)) return toast('Entre un nombre'); sendAnswer(+v); }
+function sendEst(){ const v = $('#est').value.replace(',', '.').replace(/\s/g, ''); if(v === '' || !isFinite(+v)) return toast(L('Entre un nombre', 'Enter a number')); sendAnswer(+v); }
 function sendAnswer(v){
   if(S.phase !== 'question' || (myAnswer && myAnswer.qi === S.qi)) return;
   const now = Date.now() + clockOffset;
@@ -1950,7 +2021,7 @@ function sendAnswer(v){
 function reactBlock(){
   const th = TH(S.theme);
   return `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:6px"><button class="react-btn" id="reactBtn" aria-label="Lancer">${th.react}</button>
-    <p class="mute" style="font-size:14px;text-align:center">Touche pour lancer ${th.projName} sur le grand écran</p></div>`;
+    <p class="mute" style="font-size:14px;text-align:center">${L(`Touche pour lancer ${th.projName} sur le grand écran`, `Tap to throw ${th.projEn} at the big screen`)}</p></div>`;
 }
 let lastSent = 0;
 let celebrated = '';
@@ -1960,10 +2031,10 @@ function playerCelebrate(P, me){
   if(P === 'lobby'){ setTimeout(() => emojiBurst(cx, innerHeight * .35, 16), 250); }
   if(P === 'reveal' && S.reveal){
     const g = S.reveal.gains[ME.id];
-    if(g && g.ok === true){ setTimeout(() => { emojiBurst(cx, cy, 22); cheer(th.cheer); }, 200); navigator.vibrate && navigator.vibrate([60,40,60]); }
+    if(g && g.ok === true){ setTimeout(() => { emojiBurst(cx, cy, 22); cheer(L(th.cheer, th.cheerEn)); }, 200); navigator.vibrate && navigator.vibrate([60,40,60]); }
     else if(g && g.ok === false){ setTimeout(() => { const b = document.querySelector('.p-banner'); b && b.classList.add('shake'); }, 80); navigator.vibrate && navigator.vibrate(200); }
   }
-  if(P === 'podium' && me.rank <= 3){ setTimeout(() => { emojiBurst(cx, cy, 30); cheer(['🥇','🥈','🥉'][me.rank - 1] + ' ' + th.cheer); }, 400); }
+  if(P === 'podium' && me.rank <= 3){ setTimeout(() => { emojiBurst(cx, cy, 30); cheer(['🥇','🥈','🥉'][me.rank - 1] + ' ' + L(th.cheer, th.cheerEn)); }, 400); }
 }
 function sendReact(btn){
   const now = Date.now(); if(now - lastSent < 300) return; lastSent = now;
@@ -1975,13 +2046,13 @@ function sendReact(btn){
 
 function revealVerdict(me){
   const R = S.reveal, t = R && R.type, g = R && R.gains[ME.id];
-  let bg = 'rgba(255,255,255,.08)', emo = '⏰', title = 'Trop tard !';
+  let bg = 'rgba(255,255,255,.08)', emo = '⏰', title = L('Trop tard !', 'Too late!');
   if(g){
-    if(t === 'sondage'){ bg = 'linear-gradient(135deg,#6366F1,#4338CA)'; emo = '📊'; title = 'Vote enregistré'; }
+    if(t === 'sondage'){ bg = 'linear-gradient(135deg,#6366F1,#4338CA)'; emo = '📊'; title = L('Vote enregistré', 'Vote counted'); }
     else if(g.ok){ bg = 'linear-gradient(135deg,#22C55E,#15803D)';
-      [emo, title] = {libre:['✍️','Bonne réponse !'], qcm:['🎉','Bonne réponse !'], vf:['🎉','Bien vu !'], majorite:['🐑','Tu as suivi la foule !'], minorite:['🦄','Esprit rebelle !'], estimation:['🎯','Le plus proche !']}[t]; }
+      [emo, title] = {libre:['✍️',L('Bonne réponse !','Correct!')], qcm:['🎉',L('Bonne réponse !','Correct!')], vf:['🎉',L('Bien vu !','Spot on!')], majorite:['🐑',L('Tu as suivi la foule !','You followed the crowd!')], minorite:['🦄',L('Esprit rebelle !','Rebel spirit!')], estimation:['🎯',L('Le plus proche !','Closest!')]}[t]; }
     else { bg = 'linear-gradient(135deg,#EF4444,#991B1B)';
-      [emo, title] = {libre:['😬','Raté...'], qcm:['😬','Raté...'], vf:['😬','Raté...'], majorite:['🙃','À contre-courant'], minorite:['🐑','Trop mainstream'], estimation:['📏','Pas loin...']}[t];
+      [emo, title] = {libre:['😬',L('Raté...','Wrong...')], qcm:['😬',L('Raté...','Wrong...')], vf:['😬',L('Raté...','Wrong...')], majorite:['🙃',L('À contre-courant','Against the tide')], minorite:['🐑',L('Trop mainstream','Too mainstream')], estimation:['📏',L('Pas loin...','Not far...')]}[t];
       if(t === 'estimation' && g.pts > 0) bg = 'linear-gradient(135deg,#F5A524,#B45309)'; }
   }
   return {bg, emo, title, g, R, t};
@@ -1991,26 +2062,26 @@ function playerReveal(me){
   const {bg, emo, title, g, R, t} = revealVerdict(me);
   const pts = t === 'sondage' ? '' : `<div class="pts">+${fmt(me.lastGain || 0)}</div>`;
   const banner = `<div class="p-banner" style="background:${bg}"><span class="emo">${emo}</span>
-    <div><div class="t">${title}</div><div style="opacity:.9;font-size:14px">${ord(me.rank)} sur ${S.players.length}${me.streak >= 2 ? ` · 🔥 série de ${me.streak}` : ''}</div></div>${pts}</div>`;
+    <div><div class="t">${title}</div><div style="opacity:.9;font-size:14px">${ord(me.rank)} ${L('sur', 'of')} ${S.players.length}${me.streak >= 2 ? ` · 🔥 ${L('série de', 'streak of')} ${me.streak}` : ''}</div></div>${pts}</div>`;
   let detail = '';
   if(t === 'libre'){
-    detail = `<div class="card" style="text-align:center;padding:16px"><div class="mute">Bonne réponse</div>
+    detail = `<div class="card" style="text-align:center;padding:16px"><div class="mute">${L('Bonne réponse', 'Right answer')}</div>
         <div style="font-size:34px;font-weight:700;line-height:1.15">${esc(R.accepted[0] || '')}</div>
-        ${R.accepted.length > 1 ? `<div class="mute" style="font-size:13px">Aussi accepté : ${R.accepted.slice(1).map(esc).join(', ')}</div>` : ''}
-        ${g ? `<div style="margin-top:8px">Ta réponse : <b style="color:${g.ok ? '#86EFAC' : '#FCA5A5'}">${esc(g.value)}</b></div>` : ''}</div>`;
+        ${R.accepted.length > 1 ? `<div class="mute" style="font-size:13px">${L('Aussi accepté', 'Also accepted')} : ${R.accepted.slice(1).map(esc).join(', ')}</div>` : ''}
+        ${g ? `<div style="margin-top:8px">${L('Ta réponse', 'Your answer')} : <b style="color:${g.ok ? '#86EFAC' : '#FCA5A5'}">${esc(g.value)}</b></div>` : ''}</div>`;
   } else if(t === 'estimation'){
     const nameOf = id => { const p = S.players.find(x => x.id === id); return p ? `${p.emoji} ${esc(p.name)}` : '?'; };
-    detail = `<div class="card" style="text-align:center;padding:16px"><div class="mute">Bonne réponse</div>
+    detail = `<div class="card" style="text-align:center;padding:16px"><div class="mute">${L('Bonne réponse', 'Right answer')}</div>
         <div style="font-size:44px;font-weight:700;line-height:1.1">${fmt(R.target)} ${esc(R.unit)}</div>
-        ${g ? `<div class="mute" style="margin-top:6px">Ta réponse : <b style="color:#fff">${fmt(g.value)}</b> · écart ${fmt(g.diff)}</div>` : ''}</div>
+        ${g ? `<div class="mute" style="margin-top:6px">${L('Ta réponse', 'Your answer')} : <b style="color:#fff">${fmt(g.value)}</b> · ${L('écart', 'off by')} ${fmt(g.diff)}</div>` : ''}</div>
       <div class="mini-lb">${R.closest.slice(0,3).map((c,i) => `<div class="r ${c.pid === ME.id ? 'me' : ''}"><span>${['🥇','🥈','🥉'][i]}</span><span style="flex:1">${nameOf(c.pid)}</span><span>${fmt(c.v)}</span></div>`).join('')}</div>`;
   } else {
     const tot = Math.max(1, R.counts.reduce((a,b) => a + b, 0));
-    const note = {majorite:'La réponse la plus votée gagne', minorite: R.winners.length ? 'La réponse la moins votée gagne' : 'Pas de minorité cette fois', sondage:'Résultats du vote'}[t] || '';
+    const note = {majorite:L('La réponse la plus votée gagne', 'The most voted answer wins'), minorite: R.winners.length ? L('La réponse la moins votée gagne', 'The least voted answer wins') : L('Pas de minorité cette fois', 'No minority this time'), sondage:L('Résultats du vote', 'Poll results')}[t] || '';
     detail = `<div class="p-res">${S.q.choices.map((c,i) => {
         const win = R.winners.includes(i), dim = t !== 'sondage' && !win, mine = g && g.value === i;
         return `<div class="r ${win ? 'win' : ''} ${dim ? 'dim' : ''}" style="background:${COLORS[i]};animation-delay:${i*60}ms"><div class="bar" data-w="${(R.counts[i] / tot * 100).toFixed(1)}"></div>
-          <span>${SHAPES[i]}</span><span style="flex:1">${esc(c)}${mine ? ' <b>👈 toi</b>' : ''}</span><span>${win && t !== 'sondage' ? '✓ ' : ''}${R.counts[i]}</span></div>`; }).join('')}</div>
+          <span>${SHAPES[i]}</span><span style="flex:1">${esc(c)}${mine ? ` <b>👈 ${L('toi', 'you')}</b>` : ''}</span><span>${win && t !== 'sondage' ? '✓ ' : ''}${R.counts[i]}</span></div>`; }).join('')}</div>
       ${note ? `<p class="p-note">${note}</p>` : ''}`;
   }
   return banner + `<div class="p-q">${esc(S.q.text)}</div>` + detail;
@@ -2021,9 +2092,9 @@ function playerBoard(me, withReact = true){
   const row = p => `<div class="r ${p.id === ME.id ? 'me' : ''}"><span style="width:28px">${p.rank}</span><span>${p.emoji}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</span><span>${fmt(p.score)}</span></div>`;
   const team = S.teamScores && S.teamScores.map((t,i) => `<div class="r"><span style="width:28px">${i+1}</span><span style="flex:1;color:${t.color}">${esc(t.name)}</span><span>${fmt(t.score)}</span></div>`).join('');
   return `<div class="p-banner" style="background:linear-gradient(135deg,#4F46E5,#312E81)"><span class="emo">🏆</span>
-      <div><div class="t">Tu es ${ord(me.rank)}</div><div style="opacity:.9;font-size:14px">sur ${S.players.length} joueurs</div></div><div class="pts">${fmt(me.score)}</div></div>
+      <div><div class="t">${L('Tu es', "You're")} ${ord(me.rank)}</div><div style="opacity:.9;font-size:14px">${L('sur', 'of')} ${S.players.length} ${L('joueurs', 'players')}</div></div><div class="pts">${fmt(me.score)}</div></div>
     <div class="mini-lb">${top.map(row).join('')}${inTop ? '' : `<div class="p-note">⋯</div>${row(me)}`}</div>
-    ${team ? `<p class="lbl" style="margin-top:6px">Équipes</p><div class="mini-lb">${team}</div>` : ''}
+    ${team ? `<p class="lbl" style="margin-top:6px">${L('Équipes', 'Teams')}</p><div class="mini-lb">${team}</div>` : ''}
     ${withReact ? reactBlock() : ''}`;
 }
 function reactFab(me){ return `<button class="react-fab react-trigger" aria-label="Lancer">${TH(S.theme).react}<span class="me">${me.emoji}</span></button>`; }
@@ -2034,16 +2105,16 @@ function playerJoin(){
   if(teams && !teams.some(t => t.id === ME.team)) ME.team = null;
   app.innerHTML = `<div class="center">
     <div class="logo">Quiz <b>Party</b></div><p class="mute">${esc(S.title)} · ${esc(S.room)}</p>
-    <span class="emoji-pick" id="emo" title="Changer d'avatar">${ME.emoji}</span>
-    <p class="mute" style="font-size:13px;margin-top:-10px">Touche l'avatar pour en changer</p>
-    <form id="joinForm" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:18px"><input id="nm" type="text" maxlength="18" placeholder="Ton pseudo" value="${esc(ME.name)}" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" enterkeyhint="go" style="max-width:320px;text-align:center;font-size:22px;font-weight:600">
+    <span class="emoji-pick" id="emo">${ME.emoji}</span>
+    <p class="mute" style="font-size:13px;margin-top:-10px">${L("Touche l'avatar pour en changer", 'Tap the avatar to change it')}</p>
+    <form id="joinForm" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:18px"><input id="nm" type="text" maxlength="18" placeholder="${L('Ton pseudo', 'Your nickname')}" value="${esc(ME.name)}" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" enterkeyhint="go" style="max-width:320px;text-align:center;font-size:22px;font-weight:600">
     ${teams ? `<div class="team-pick" style="max-width:360px">${teams.map(t => `<button type="button" data-t="${t.id}" class="${ME.team === t.id ? 'sel' : ''}" style="border-color:${t.color};${ME.team === t.id ? `background:${t.color}` : `color:${t.color}`}">${esc(t.name)}</button>`).join('')}</div>
-      <p class="mute" style="font-size:13px">Sans choix, tu seras placé dans l'équipe la plus petite</p>` : ''}
-    <button type="submit" class="btn big warm" id="joinGo">Je rejoins 🚀</button></form>
-    ${S.phase !== 'lobby' ? '<p class="mute">La partie a commencé, tu peux quand même rejoindre.</p>' : ''}</div>`;
+      <p class="mute" style="font-size:13px">${L("Sans choix, tu seras placé dans l'équipe la plus petite", "If you don't pick, you'll join the smallest team")}</p>` : ''}
+    <button type="submit" class="btn big warm" id="joinGo">${L('Je rejoins', 'Join')} 🚀</button></form>
+    ${S.phase !== 'lobby' ? `<p class="mute">${L('La partie a commencé, tu peux quand même rejoindre.', 'The game has started, you can still join.')}</p>` : ''}</div>`;
   $('#emo').onclick = e => { ME.emoji = EMOJIS[(EMOJIS.indexOf(ME.emoji) + 1) % EMOJIS.length]; e.target.textContent = ME.emoji; };
   document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { ME.team = b.dataset.t; ME.name = $('#nm').value; playerKey = ''; playerJoin(); });
-  const go = () => { const n = $('#nm').value.trim(); if(!n) return toast('Choisis un pseudo'); ME.name = n; ME.joined = true; ME.joinedAt = Date.now(); saveMe(); transport.send({kind:'join', ...ME}); playerKey = ''; };
+  const go = () => { const n = $('#nm').value.trim(); if(!n) return toast(L('Choisis un pseudo', 'Pick a nickname')); ME.name = n; ME.joined = true; ME.joinedAt = Date.now(); saveMe(); transport.send({kind:'join', ...ME}); playerKey = ''; };
   $('#joinForm').onsubmit = e => { e.preventDefault(); $('#nm').blur(); go(); };
   $('#nm').oninput = e => { ME.name = e.target.value; };
   $('#nm').onfocus = () => setTimeout(() => $('#nm') && $('#nm').scrollIntoView({block:'center', behavior:'smooth'}), 300);
