@@ -213,6 +213,9 @@ body.noel.lobbyfx .hills{display:block}
 .mini-lb .r{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.07);margin-bottom:6px;font-weight:600}
 .mini-lb .r.me{background:rgba(99,102,241,.45);outline:2px solid var(--indigo-2)}
 @media (max-width:700px){body.noel{background-attachment:scroll}}
+.panel-title{font-size:clamp(40px,7vw,88px);font-weight:700;letter-spacing:-.03em;line-height:1.02;max-width:1100px;animation:panelIn .8s cubic-bezier(.2,1.4,.4,1) both}
+.panel-body{font-size:clamp(20px,2.6vw,30px);color:#E0E7FF;max-width:900px;line-height:1.35;animation:slideUp .6s .25s both}
+@keyframes panelIn{0%{transform:scale(.6) rotate(-3deg);opacity:0}100%{transform:none;opacity:1}}
 .kbd{font-size:12px;padding:2px 6px;border-radius:6px;border:1px solid var(--line);color:var(--mute)}
 @media (max-width:700px){
   body{background-attachment:scroll}
@@ -271,7 +274,8 @@ const TYPES = {
   majorite:   {label:'Majorité gagne',  icon:'🐑', help:'Pas de bonne réponse : ceux qui choisissent la réponse la plus votée marquent.'},
   minorite:   {label:'Minorité gagne',  icon:'🦄', help:'Ceux qui choisissent la réponse la MOINS votée marquent (au moins 2 réponses différentes).'},
   sondage:    {label:'Sondage',         icon:'📊', help:'Aucun point. On affiche juste les résultats du vote.'},
-  estimation: {label:'Estimation',      icon:'🔢', help:'Réponse chiffrée. Le plus proche gagne tout, les autres selon leur écart.'}
+  estimation: {label:'Estimation',      icon:'🔢', help:'Réponse chiffrée. Le plus proche gagne tout, les autres selon leur écart.'},
+  panneau:    {label:'Panneau',         icon:'📣', help:"Un écran de message entre deux questions (pause, blague, annonce...). Pas de réponse ni de points. Il peut afficher le classement."}
 };
 
 /* ---------------- Transport ----------------
@@ -552,6 +556,8 @@ function countUp(el, from, to, dur = 900){
 const fmt = n => Math.round(n).toLocaleString('fr-FR');
 const ord = n => n === 1 ? '1er' : n + 'e';
 const choicesOf = q => q.type === 'vf' ? ['Vrai','Faux'] : (q.choices || []);
+const isPanel = q => q && q.type === 'panneau';
+const nl2br = t => esc(t).replace(/\n/g, '<br>');
 
 function timerSVG(size = 130){
   const r = size/2 - 8, c = 2 * Math.PI * r;
@@ -581,7 +587,7 @@ function demoQuiz(){
 function normalizeQuiz(d){
   d.id = d.id || uid(); d.title = d.title || 'Quiz sans titre';
   d.theme = d.theme || 'noel';
-  d.defaults = {time:20, points:1000, speed:true, ...(d.defaults || {})};
+  d.defaults = {time:20, points:1000, speed:true, read:3, board:true, ...(d.defaults || {})};
   d.teams = d.teams || {enabled:false, list: TEAM_PRESETS.slice(0,2).map(t => ({id:uid(), ...t}))};
   d.questions = (d.questions || []).map(q => ({...newQuestion(q.type || 'qcm', d.defaults), ...q, id: q.id || uid(), choices: q.choices || [], correct: q.correct || []}));
   d.updatedAt = d.updatedAt || Date.now();
@@ -746,12 +752,15 @@ function renderEditor(saved){
       <div class="grid2">
         <div><span class="lbl">Temps</span><select data-g="time">${[5,10,15,20,30,45,60,90].map(v => `<option value="${v}" ${QUIZ.defaults.time === v ? 'selected':''}>${v} s</option>`).join('')}</select></div>
         <div><span class="lbl">Points de base</span><select data-g="points">${[250,500,800,1000,1500,2000].map(v => `<option value="${v}" ${QUIZ.defaults.points === v ? 'selected':''}>${v}</option>`).join('')}</select></div>
+        <div><span class="lbl">Temps de lecture</span><select data-g="read">${[0,3,5,8,10,15,20].map(v => `<option value="${v}" ${QUIZ.defaults.read === v ? 'selected':''}>${v ? v + ' s' : 'Aucun'}</option>`).join('')}</select></div>
         <div style="display:flex;align-items:flex-end;padding-bottom:10px"><label class="toggle"><input type="checkbox" data-g="speed" ${QUIZ.defaults.speed ? 'checked':''}> ⚡ Bonus vitesse</label></div>
+        <div style="display:flex;align-items:flex-end;padding-bottom:10px"><label class="toggle"><input type="checkbox" data-g="board" ${QUIZ.defaults.board ? 'checked':''}> 🏆 Classement après chaque question</label></div>
         <div><span class="lbl">Ambiance</span><select data-f="theme"><option value="noel" ${QUIZ.theme === 'noel' ? 'selected':''}>🎄 Noël</option><option value="classique" ${QUIZ.theme === 'classique' ? 'selected':''}>✨ Classique</option></select></div>
       </div>
-      <p class="type-help">Changer un réglage ici l'applique à toutes les questions. Tu peux ensuite modifier une question à part : son réglage passe en <span style="color:var(--warm)">orange</span> et les autres ne bougent pas.</p>
+      <p class="type-help">Temps de lecture : la question s'affiche seule pendant ce temps avant que les réponses s'ouvrent. Changer un réglage ici l'applique à toutes les questions. Tu peux ensuite modifier une question à part : son réglage passe en <span style="color:var(--warm)">orange</span> et les autres ne bougent pas.</p>
     </div>
-    <div class="row" style="margin-bottom:12px"><h2 class="grow">${QUIZ.questions.length} question${QUIZ.questions.length > 1 ? 's' : ''}</h2></div>
+    ${(() => { const nq = QUIZ.questions.filter(q => !isPanel(q)).length, np = QUIZ.questions.length - nq;
+      return `<div class="row" style="margin-bottom:12px"><h2 class="grow">${nq} question${nq > 1 ? 's' : ''}${np ? ` <span class="mute" style="font-size:18px">· ${np} panneau${np > 1 ? 'x' : ''}</span>` : ''}</h2></div>`; })()}
     <div id="qlist">${QUIZ.questions.map(editorCard).join('')}</div>
     <div class="row" style="margin:6px 0 30px">${Object.entries(TYPES).map(([k,v]) => `<button class="btn ghost sm" data-a="add" data-type="${k}">${v.icon} + ${v.label}</button>`).join('')}</div>
     <div class="row" style="justify-content:flex-end;position:sticky;bottom:16px">
@@ -782,9 +791,10 @@ function renderEditor(saved){
   app.oninput = app.onchange = e => {
     const el = e.target, i = +el.dataset.i, f = el.dataset.f;
     if(el.dataset.g && e.type === 'change'){
-      const g = el.dataset.g, v = g === 'speed' ? el.checked : +el.value;
+      const g = el.dataset.g, v = (g === 'speed' || g === 'board') ? el.checked : +el.value;
       QUIZ.defaults[g] = v; let n = 0;
       QUIZ.questions.forEach(q => {
+        if(isPanel(q)) return;
         if(g === 'points' && q.type === 'sondage') return;
         if(g === 'speed' && (q.type === 'sondage' || q.type === 'estimation')) return;
         q[g] = v; n++;
@@ -799,12 +809,13 @@ function renderEditor(saved){
     if(f === 'teamCount' && e.type === 'change'){ const n = +el.value; const l = QUIZ.teams.list; while(l.length < n) l.push({id:uid(), ...TEAM_PRESETS[l.length]}); l.length = n; saveQuiz(); return renderEditor(saved); }
     if(isNaN(i)) return;
     const q = QUIZ.questions[i];
-    if(f === 'type' && e.type === 'change'){ const nq = newQuestion(el.value); nq.text = q.text; if(q.choices.length && el.value !== 'vf' && el.value !== 'estimation') nq.choices = q.choices; QUIZ.questions[i] = nq; saveQuiz(); return renderEditor(saved); }
+    if(f === 'type' && e.type === 'change'){ const nq = newQuestion(el.value); nq.text = q.text; if(q.choices.length && !['vf','estimation','panneau'].includes(el.value)) nq.choices = q.choices; QUIZ.questions[i] = nq; saveQuiz(); return renderEditor(saved); }
     if(f === 'text') q.text = el.value;
     if(f === 'choice') q.choices[+el.dataset.c] = el.value;
     if(f === 'correct'){ const c = +el.dataset.c; if(q.type === 'vf') q.correct = [c]; else q.correct = el.checked ? [...new Set([...q.correct, c])] : q.correct.filter(x => x !== c); }
-    if(['time','points','speed'].includes(f)){ if(e.type !== 'change') return;
-      q[f] = f === 'speed' ? el.checked : +el.value; saveQuiz();
+    if(f === 'body') q.body = el.value;
+    if(['time','points','speed','read','board','showBoard'].includes(f)){ if(e.type !== 'change') return;
+      q[f] = ['speed','board','showBoard'].includes(f) ? el.checked : +el.value; saveQuiz();
       const card = el.closest('.qcard'); if(card){ const y = scrollY; card.outerHTML = editorCard(q, i); scrollTo(0, y); } return; }
     if(f === 'answer') q.answer = el.value === '' ? '' : +el.value;
     if(f === 'unit') q.unit = el.value;
@@ -820,17 +831,38 @@ function renderEditor(saved){
 
 function curDefaults(){ try{ return QUIZ && QUIZ.defaults; }catch(e){ return null; } } // try : QUIZ peut ne pas encore exister
 function newQuestion(type, D){
-  D = D || curDefaults() || {time:20, points:1000, speed:true};
-  const base = {id:uid(), type, text:'', choices:['',''], correct:[], time:D.time, points:D.points, speed:D.speed};
+  D = {time:20, points:1000, speed:true, read:3, board:true, ...(D || curDefaults() || {})};
+  const base = {id:uid(), type, text:'', choices:['',''], correct:[], time:D.time, points:D.points, speed:D.speed, read:D.read, board:D.board};
   if(type === 'vf') Object.assign(base, {choices:[], correct:[0]});
   if(type === 'qcm') Object.assign(base, {choices:['','','',''], correct:[0]});
   if(type === 'majorite' || type === 'minorite') Object.assign(base, {choices:['','','']});
   if(type === 'sondage') Object.assign(base, {choices:['','',''], points:0, speed:false});
   if(type === 'estimation') Object.assign(base, {choices:[], answer:'', unit:'', speed:false});
+  if(type === 'panneau') Object.assign(base, {choices:[], correct:[], body:'', time:0, points:0, speed:false, read:0, showBoard:false});
   return base;
 }
 
+function panelCard(q, i){
+  return `<div class="card qcard" style="border-color:rgba(228,133,72,.45);background:rgba(228,133,72,.08)">
+    <div class="qhead"><div class="qnum" style="background:var(--warm)">📣</div>
+      <select data-f="type" data-i="${i}" style="width:auto">${Object.entries(TYPES).map(([k,v]) => `<option value="${k}" ${k === q.type ? 'selected' : ''}>${v.icon} ${v.label}</option>`).join('')}</select>
+      <div class="grow"></div>
+      <button class="icon-btn" data-a="up" data-i="${i}" title="Monter">↑</button>
+      <button class="icon-btn" data-a="down" data-i="${i}" title="Descendre">↓</button>
+      <button class="icon-btn" data-a="dup" data-i="${i}" title="Dupliquer">⧉</button>
+      <button class="icon-btn" data-a="del" data-i="${i}" title="Supprimer">🗑</button>
+    </div>
+    <span class="lbl">Titre</span><input data-f="text" data-i="${i}" value="${esc(q.text)}" placeholder="Ex : Pause apéro 🥂">
+    <span class="lbl" style="margin-top:10px">Message (optionnel)</span><textarea data-f="body" data-i="${i}" rows="2" placeholder="Ex : Prochaine manche : spécial films de Noël !">${esc(q.body || '')}</textarea>
+    <p class="type-help">${TYPES.panneau.help}</p>
+    <div class="grid2">
+      <div><span class="lbl">Durée</span><select data-f="time" data-i="${i}">${[0,5,10,15,20,30,60].map(v => `<option value="${v}" ${q.time === v ? 'selected':''}>${v ? v + ' s puis suite auto' : "Jusqu'à ce que tu passes"}</option>`).join('')}</select></div>
+      <div style="display:flex;align-items:flex-end;padding-bottom:10px"><label class="toggle"><input type="checkbox" data-f="showBoard" data-i="${i}" ${q.showBoard ? 'checked':''}> 🏆 Afficher le classement</label></div>
+    </div></div>`;
+}
+
 function editorCard(q, i){
+  if(isPanel(q)) return panelCard(q, i);
   const T = TYPES[q.type];
   const hasCorrect = q.type === 'qcm' || q.type === 'vf';
   const choices = choicesOf(q);
@@ -856,9 +888,11 @@ function editorCard(q, i){
     <p class="type-help">${T.help}</p>
     ${choiceRows}
     <div class="grid2">
+      <div><span class="lbl">Lecture</span><select data-f="read" data-i="${i}" class="${q.read !== QUIZ.defaults.read ? 'custom' : ''}">${[0,3,5,8,10,15,20].map(v => `<option value="${v}" ${q.read === v ? 'selected':''}>${v ? v + ' s' : 'Aucune'}</option>`).join('')}</select></div>
       <div><span class="lbl">Temps</span><select data-f="time" data-i="${i}" class="${q.time !== QUIZ.defaults.time ? 'custom' : ''}">${[5,10,15,20,30,45,60,90].map(s => `<option value="${s}" ${q.time === s ? 'selected':''}>${s} s</option>`).join('')}</select></div>
       ${q.type !== 'sondage' ? `<div><span class="lbl">Points</span><select data-f="points" data-i="${i}" class="${q.points !== QUIZ.defaults.points ? 'custom' : ''}">${[0,250,500,800,1000,1500,2000].map(p => `<option value="${p}" ${q.points === p ? 'selected':''}>${p}</option>`).join('')}</select></div>` : ''}
       ${q.type !== 'sondage' && q.type !== 'estimation' ? `<div style="display:flex;align-items:flex-end;padding-bottom:10px"><label class="toggle" style="${q.speed !== QUIZ.defaults.speed ? 'color:var(--warm)' : ''}"><input type="checkbox" data-f="speed" data-i="${i}" ${q.speed ? 'checked':''}> ⚡ Bonus vitesse</label></div>` : ''}
+      <div style="display:flex;align-items:flex-end;padding-bottom:10px"><label class="toggle" style="${q.board !== QUIZ.defaults.board ? 'color:var(--warm)' : ''}"><input type="checkbox" data-f="board" data-i="${i}" ${q.board ? 'checked':''}> 🏆 Classement après</label></div>
     </div></div>`;
 }
 
@@ -902,8 +936,11 @@ SONDAGE: Prochaine soirée ?
 - Raclette
 - Karaoké
 
-ESTIMATION: En quelle année le premier pas sur la Lune ? [25s]
-= 1969`;
+ESTIMATION: En quelle année le premier pas sur la Lune ? [25s] [lecture 5s]
+= 1969
+
+PANNEAU: Pause apéro ! [classement]
+On reprend dans 5 minutes`;
 
 const CLAUDE_PROMPT = `Transforme mes questions au format "Quiz Party" ci-dessous. Réponds uniquement avec le bloc de texte, sans commentaire.
 
@@ -912,7 +949,8 @@ Règles :
 - QCM, MAJORITE, MINORITE, SONDAGE : une réponse par ligne commençant par "-" (2 à 6 réponses). Pour un QCM, la ou les bonnes réponses commencent par "*" au lieu de "-".
 - VF : une ligne "= Vrai" ou "= Faux".
 - ESTIMATION : une ligne "= nombre", avec l'unité après si utile (ex : "= 330 m").
-- Options facultatives en fin de ligne de question : [20s] pour le temps, [1000pts] pour les points, [sans vitesse] pour désactiver le bonus vitesse.
+- Options facultatives en fin de ligne de question : [20s] pour le temps de réponse, [lecture 5s] pour le temps de lecture avant les réponses, [1000pts] pour les points, [sans vitesse] pour désactiver le bonus vitesse, [sans classement] pour ne pas afficher le classement après.
+- PANNEAU : un écran de message entre deux questions. Ligne "PANNEAU: Titre", puis le message sur les lignes suivantes. Ajoute [classement] pour afficher le classement, [10s] pour passer automatiquement.
 - Une ligne vide entre chaque question.
 - Si je ne précise pas le type, choisis le plus adapté. Si je ne donne pas les mauvaises réponses d'un QCM, invente des propositions crédibles.
 
@@ -923,7 +961,7 @@ Mes questions :
 `;
 
 const TYPE_ALIASES = {q:'qcm', qcm:'qcm', question:'qcm', vf:'vf', 'vrai/faux':'vf', 'vrai faux':'vf', 'vrai-faux':'vf',
-  majorite:'majorite', majorité:'majorite', minorite:'minorite', minorité:'minorite', sondage:'sondage', estimation:'estimation', nombre:'estimation'};
+  panneau:'panneau', message:'panneau', pause:'panneau', majorite:'majorite', majorité:'majorite', minorite:'minorite', minorité:'minorite', sondage:'sondage', estimation:'estimation', nombre:'estimation'};
 
 function parseQuestionsText(raw){
   const txt = raw.trim();
@@ -934,7 +972,7 @@ function parseQuestionsText(raw){
     }catch(e){ return {questions:[], errors:['JSON invalide']}; }
   }
   const out = []; let cur = null;
-  const headRe = /^(?:\d+\s*[.)-]\s*)?(qcm|q|question|vf|vrai\s*[\/-]?\s*faux|majorit[ée]|minorit[ée]|sondage|estimation|nombre)\s*[:.)-]\s*(.+)$/i;
+  const headRe = /^(?:\d+\s*[.)-]\s*)?(qcm|q|question|vf|vrai\s*[\/-]?\s*faux|majorit[ée]|minorit[ée]|sondage|estimation|nombre|panneau|message|pause)\s*[:.)-]\s*(.+)$/i;
   for(let line of txt.split(/\r?\n/)){
     line = line.trim();
     if(!line) continue;
@@ -945,11 +983,15 @@ function parseQuestionsText(raw){
       cur = newQuestion(type); cur.choices = []; if(type === 'qcm') cur.correct = []; if(type === 'vf') cur.correct = [];
       const t = text.match(/\[\s*(\d+)\s*s(?:ec)?\s*\]/i); if(t) cur.time = Math.min(120, Math.max(5, +t[1]));
       const pt = text.match(/\[\s*(\d+)\s*pts?\s*\]/i); if(pt) cur.points = +pt[1];
+      if(type === 'panneau'){ if(t) cur.time = +t[1]; if(/\[\s*classement\s*\]/i.test(text)) cur.showBoard = true; }
+      const rd = text.match(/\[\s*lecture\s*(\d+)\s*s?\s*\]/i); if(rd && type !== 'panneau') cur.read = Math.min(30, +rd[1]);
+      if(/\[\s*sans\s+classement\s*\]/i.test(text)) cur.board = false;
       if(/\[\s*sans\s+vitesse\s*\]/i.test(text)) cur.speed = false;
       else if(/\[\s*vitesse\s*\]/i.test(text)) cur.speed = true;
       cur.text = text.replace(/\[[^\]]*\]/g, '').trim();
       out.push(cur); continue;
     }
+    if(cur && cur.type === 'panneau'){ cur.body = (cur.body ? cur.body + '\n' : '') + line.replace(/^[-*•]\s*/, ''); continue; }
     if(!cur){ cur = newQuestion('qcm'); cur.choices = []; cur.correct = []; cur.text = line; out.push(cur); continue; }
     const ans = line.match(/^=\s*(.+)$/);
     if(ans){
@@ -973,6 +1015,7 @@ function parseQuestionsText(raw){
   out.forEach((q, i) => {
     const n = `Q${i+1}`;
     if(!q.text) errors.push(`${n} : texte vide`);
+    if(q.type === 'panneau') return;
     if(q.type === 'vf' && !q.correct.length) errors.push(`${n} : ajoute "= Vrai" ou "= Faux"`);
     if(q.type === 'estimation' && (q.answer === '' || isNaN(q.answer))) errors.push(`${n} : ajoute "= nombre"`);
     if(['qcm','majorite','minorite','sondage'].includes(q.type) && q.choices.length < 2) errors.push(`${n} : il faut au moins 2 réponses`);
@@ -1000,7 +1043,7 @@ function openImport(saved){
     parsed = parseQuestionsText(ta.value);
     const errByQ = new Set(parsed.errors.map(e => +e.match(/^Q(\d+)/)?.[1]));
     $('#imPrev', bg).innerHTML = parsed.questions.map((q,i) => `<div class="${errByQ.has(i+1) ? 'err' : ''}">${TYPES[q.type].icon} <b>${esc(TYPES[q.type].label)}</b> · ${esc(q.text)}
-      <span class="mute">${q.type === 'estimation' ? '= ' + esc(q.answer) + ' ' + esc(q.unit||'') : q.type === 'vf' ? '= ' + (q.correct[0] === 1 ? 'Faux' : 'Vrai') : choicesOf(q).map((c,ci) => q.correct.includes(ci) && q.type === 'qcm' ? '✓ ' + esc(c) : esc(c)).join(' · ')}</span></div>`).join('')
+      <span class="mute">${q.type === 'panneau' ? esc(q.body || '') + (q.showBoard ? ' · 🏆 classement' : '') : q.type === 'estimation' ? '= ' + esc(q.answer) + ' ' + esc(q.unit||'') : q.type === 'vf' ? '= ' + (q.correct[0] === 1 ? 'Faux' : 'Vrai') : choicesOf(q).map((c,ci) => q.correct.includes(ci) && q.type === 'qcm' ? '✓ ' + esc(c) : esc(c)).join(' · ')}</span></div>`).join('')
       + parsed.errors.map(e => `<div class="err">⚠️ ${esc(e)}</div>`).join('');
     const ok = parsed.questions.length && !parsed.errors.length;
     $('#imAdd', bg).disabled = $('#imReplace', bg).disabled = !ok;
@@ -1021,8 +1064,10 @@ function openImport(saved){
 function validateQuiz(){
   const errs = [];
   if(!QUIZ.questions.length) errs.push('Ajoute au moins une question');
+  if(QUIZ.questions.length && QUIZ.questions.every(isPanel)) errs.push('Ajoute au moins une vraie question');
   QUIZ.questions.forEach((q, i) => {
     const n = i + 1;
+    if(isPanel(q)){ if(!q.text.trim()) errs.push(`Élément ${n} : titre du panneau vide`); return; }
     if(!q.text.trim()) errs.push(`Q${n} : texte vide`);
     if(q.type === 'estimation'){ if(q.answer === '' || isNaN(+q.answer)) errs.push(`Q${n} : bonne réponse chiffrée manquante`); return; }
     if(q.type !== 'vf' && choicesOf(q).filter(c => c.trim()).length < 2) errs.push(`Q${n} : il faut au moins 2 réponses`);
@@ -1104,15 +1149,18 @@ function teamScores(){
     return {...t, size:m.length, score:Math.round(avg)};
   }).sort((a,b) => b.score - a.score);
 }
+function qNum(quiz, qi){ return quiz.questions.slice(0, qi + 1).filter(q => !isPanel(q)).length; }
+function qTotal(quiz){ return quiz.questions.filter(q => !isPanel(q)).length; }
+function qLabel(){ return `Question ${qNum(G.quiz, G.qi)} / ${qTotal(G.quiz)}`; }
 function curQ(){ return G.qi >= 0 ? G.quiz.questions[G.qi] : null; }
 
 function publicState(){
   const q = curQ();
   return {
     from:'host', kind:'state', room:G.room, title:G.quiz.title, phase:G.phase, qi:G.qi,
-    total:G.quiz.questions.length, theme:G.quiz.theme || 'noel', hostNow:Date.now(), deadline:G.deadline, readyEnd:G.readyEnd,
+    total:G.quiz.questions.length, qnum: G.qi >= 0 ? qNum(G.quiz, G.qi) : 0, qtotal: qTotal(G.quiz), panelEnd: G.panelEnd || 0, theme:G.quiz.theme || 'noel', hostNow:Date.now(), deadline:G.deadline, readyEnd:G.readyEnd,
     teams: G.quiz.teams.enabled ? G.quiz.teams.list : null,
-    q: q && G.phase !== 'lobby' ? {type:q.type, text:q.text, choices:choicesOf(q), time:q.time, points:q.points, unit:q.unit || ''} : null,
+    q: q && G.phase !== 'lobby' ? {type:q.type, text:q.text, choices:choicesOf(q), time:q.time, points:q.points, unit:q.unit || '', body:q.body || '', showBoard:!!q.showBoard} : null,
     answered: Object.keys(G.answers),
     reveal: (G.phase === 'reveal' || G.phase === 'leaderboard') ? G.reveal : null,
     players: ranked().map(({id,name,emoji,team,score,rank,lastGain,lastOk,streak}) => ({id,name,emoji,team,score,rank,lastGain,lastOk,streak})),
@@ -1135,7 +1183,11 @@ function startGame(){
 function nextQuestion(){
   G.qi++; G.answers = {}; G.reveal = null;
   if(G.qi >= G.quiz.questions.length){ G.phase = 'podium'; changed(); setTimeout(() => { fanfare(); confetti(260); }, 900); return; }
-  G.phase = 'ready'; G.readyEnd = Date.now() + 3500; changed();
+  const q = curQ();
+  if(isPanel(q)){ G.phase = 'panel'; G.panelEnd = q.time ? Date.now() + q.time * 1000 : 0; changed(); return; }
+  const read = q.read ?? 3;
+  if(!read){ openQuestion(); return; }
+  G.phase = 'ready'; G.readyEnd = Date.now() + read * 1000 + 400; changed();
 }
 function openQuestion(){
   const q = curQ();
@@ -1215,6 +1267,7 @@ function P_streakBonus(streak, q){ return (q.points > 0 && streak >= 2) ? Math.m
 function hostTick(){
   if(!G) return;
   if(G.phase === 'ready' && Date.now() >= G.readyEnd) openQuestion();
+  if(G.phase === 'panel' && G.panelEnd && Date.now() >= G.panelEnd){ G.panelEnd = 0; nextQuestion(); return; }
   if(G.phase === 'question'){
     const left = Math.ceil((G.deadline - Date.now()) / 1000);
     if(left !== hostTick.last && left <= 5 && left > 0) beep(left <= 2 ? 880 : 660, .08);
@@ -1227,9 +1280,11 @@ function hostTick(){
 function primaryAction(){
   if(!G) return;
   ({lobby: () => Object.keys(G.players).length ? startGame() : toast('Attends au moins un joueur'),
+    ready: openQuestion,
     question: doReveal,
-    reveal: () => { G.phase = 'leaderboard'; changed(); },
+    reveal: () => { if(curQ().board === false) nextQuestion(); else { G.phase = 'leaderboard'; changed(); } },
     leaderboard: nextQuestion,
+    panel: nextQuestion,
     podium: () => {}
   }[G.phase] || (() => {}))();
 }
@@ -1261,9 +1316,10 @@ function renderHost(force = true){
   if(P === 'reveal') body = hostReveal();
   if(P === 'leaderboard') body = hostLeaderboard();
   if(P === 'podium') body = hostPodium();
+  if(P === 'panel') body = hostPanel();
   app.innerHTML = top + body;
   const th = G.quiz.theme || 'noel';
-  fx({theme: th, snow: {lobby:1, ready:.6, question:.2, reveal:.4, leaderboard:.5, podium:1}[P] ?? .3, sleigh: P === 'lobby' || P === 'podium', hills: P === 'lobby' || P === 'podium'});
+  fx({theme: th, snow: {lobby:1, ready:.6, question:.2, reveal:.4, leaderboard:.5, podium:1, panel:.8}[P] ?? .3, sleigh: P === 'lobby' || P === 'podium' || P === 'panel', hills: P === 'lobby' || P === 'podium'});
   if(P === 'lobby') runArena();
   app.onclick = app.oninput = app.onchange = null;
   $('#mute').onclick = () => { muted = !muted; store.set('quiz-muted', muted); $('#mute').textContent = muted ? '🔇' : '🔊'; };
@@ -1323,9 +1379,10 @@ function hostReady(){
   const q = curQ(), T = TYPES[q.type];
   return `<div class="center">
     <div class="pill" style="font-size:16px">${T.icon} ${T.label}</div>
-    <p class="mute" style="font-size:20px">Question ${G.qi + 1} / ${G.quiz.questions.length}</p>
+    <p class="mute" style="font-size:20px">${qLabel()}</p>
     <div class="q-text">${esc(q.text)}</div>
-    <div class="ready-num">3</div></div>`;
+    <div class="ready-num">${Math.max(1, Math.ceil((G.readyEnd - Date.now()) / 1000))}</div>
+    <button class="btn ghost sm" data-h="primary">Ouvrir les réponses maintenant ⏭</button></div>`;
 }
 
 function tilesHTML(q, reveal){
@@ -1343,7 +1400,7 @@ function tilesHTML(q, reveal){
 function hostQuestion(){
   const q = curQ(), T = TYPES[q.type];
   return `<div class="stage">
-    <div class="q-top"><span class="pill">${T.icon} ${T.label}</span><span class="pill">Question ${G.qi+1} / ${G.quiz.questions.length}</span>
+    <div class="q-top"><span class="pill">${T.icon} ${T.label}</span><span class="pill">${qLabel()}</span>
       <button class="btn ghost sm" data-h="primary">Révéler ⏭</button></div>
     <div class="q-text">${esc(q.text)}</div>
     <div class="q-mid">${timerSVG(130)}
@@ -1366,8 +1423,8 @@ function hostReveal(){
       <div class="card" style="max-width:600px;margin:0 auto;width:100%">${R.closest.length ? R.closest.map((c,i) => `<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)"><b style="width:30px">${i===0?'🏆':ord(i+1)}</b><span class="grow">${name(c.pid)}</span><b>${fmt(c.v)}</b><span class="mute" style="width:110px;text-align:right">écart ${fmt(c.d)}</span></div>`).join('') : '<p class="mute">Aucune réponse</p>'}</div>`;
   } else body = tilesHTML(q, R);
   return `<div class="stage">
-    <div class="q-top"><span class="pill">${T.icon} ${T.label}</span><span class="pill">Question ${G.qi+1} / ${G.quiz.questions.length}</span>
-      <button class="btn" data-h="primary">Classement ➜ <span class="kbd">Espace</span></button></div>
+    <div class="q-top"><span class="pill">${T.icon} ${T.label}</span><span class="pill">${qLabel()}</span>
+      <button class="btn" data-h="primary">${q.board === false ? (G.qi >= G.quiz.questions.length - 1 ? 'Podium final 🎉' : 'Suite ➜') : 'Classement ➜'} <span class="kbd">Espace</span></button></div>
     <div class="q-text" style="font-size:clamp(22px,3vw,36px)">${esc(q.text)}</div>
     ${msg ? `<h2 style="text-align:center">${msg}</h2>` : ''}
     ${body}
@@ -1385,6 +1442,22 @@ function hostLeaderboard(){
       <div class="lb-row ${p.rank === 1 ? 'top1' : ''}" data-id="${esc(p.id)}" data-rank="${p.rank}" data-prev="${Math.min(p.prevRank || p.rank, 9)}" style="top:${((Math.min(p.prevRank || p.rank, 9)) - 1) * 72}px">
         <span class="rk">${p.rank}</span><span class="em">${p.emoji}</span><span class="nm">${esc(p.name)}${p.streak >= 2 ? ` <span title="Série">🔥${p.streak}</span>` : ''}</span>
         <span class="gain">${p.lastGain ? '+' + fmt(p.lastGain) : ''}</span><span class="sc" data-from="${p.score - p.lastGain}" data-to="${p.score}">${fmt(p.score - p.lastGain)}</span></div>`).join('')}</div>
+  </div>`;
+}
+
+function boardMini(n = 5){
+  const R = ranked().slice(0, n), TS = teamScores(), maxT = TS ? Math.max(1, ...TS.map(t => t.score)) : 1;
+  return `${TS ? `<div class="team-bars" style="max-width:640px">${TS.map(t => `<div class="team-bar"><div class="tb-name" style="color:${t.color}">${esc(t.name)}</div><div class="tb-track"><div class="tb-fill" style="background:${t.color}" data-w="${t.score/maxT*100}"></div></div><div class="tb-sc">${fmt(t.score)}</div></div>`).join('')}</div>` : ''}
+    <div class="card" style="width:100%;max-width:640px;text-align:left;padding:12px 18px">${R.map(p => `<div class="row" data-id="${esc(p.id)}" style="padding:8px 0;font-size:20px;font-weight:600;border-bottom:1px solid var(--line)"><b style="width:40px">${['🥇','🥈','🥉'][p.rank-1] || p.rank}</b><span>${p.emoji}</span><span class="grow">${esc(p.name)}</span><b>${fmt(p.score)}</b></div>`).join('') || '<p class="mute">Pas encore de joueurs</p>'}</div>`;
+}
+function hostPanel(){
+  const q = curQ(), last = G.qi >= G.quiz.questions.length - 1;
+  return `<div class="center" style="gap:22px">
+    <div class="panel-title">${esc(q.text)}</div>
+    ${q.body ? `<p class="panel-body">${nl2br(q.body)}</p>` : ''}
+    ${q.showBoard ? boardMini(5) : ''}
+    ${G.panelEnd ? `<div class="mini-timer" style="width:100%;max-width:520px"><div id="panelBar"></div></div>` : ''}
+    <button class="btn ${last ? 'warm' : ''}" data-h="primary">${last ? 'Podium final 🎉' : 'Continuer ➜'} <span class="kbd">Espace</span></button>
   </div>`;
 }
 
@@ -1420,6 +1493,10 @@ let clockOffset = 0; // côté joueur : hostNow - Date.now()
 function updateTimers(){
   const isHost = location.hash.startsWith('#host');
   const st = isHost ? G : S;
+  if(st && st.phase === 'panel' && st.panelEnd){
+    const q = isHost ? curQ() : st.q, now = Date.now() + (isHost ? 0 : clockOffset);
+    const el = document.getElementById('panelBar'); if(el && q && q.time) el.style.width = Math.max(0, (st.panelEnd - now) / (q.time * 1000) * 100) + '%';
+  }
   if(!st || st.phase !== 'question') return;
   const now = Date.now() + (isHost ? 0 : clockOffset);
   const total = (isHost ? curQ().time : S.q.time) * 1000;
@@ -1484,7 +1561,7 @@ function renderPlayer(){
       <p class="mute">${S.players.length} joueur${S.players.length > 1 ? 's' : ''} connecté${S.players.length > 1 ? 's' : ''}. Regarde le grand écran, ça va commencer.</p>
       ${reactBlock()}</div>`;
   }
-  if(P === 'ready') body = `<div class="p-feedback" style="background:rgba(255,255,255,.05)"><p class="mute">Question ${S.qi+1} / ${S.total}</p><div class="pill">${TYPES[S.q.type].icon} ${TYPES[S.q.type].label}</div><div class="emo" style="animation:pulse 1s infinite">⏳</div><div class="p-q" style="font-size:22px">${esc(S.q.text)}</div><p class="mute">Prépare-toi...</p></div>`;
+  if(P === 'ready') body = `<div class="p-feedback" style="background:rgba(255,255,255,.05)"><p class="mute">Question ${S.qnum} / ${S.qtotal}</p><div class="pill">${TYPES[S.q.type].icon} ${TYPES[S.q.type].label}</div><div class="emo" style="animation:pulse 1s infinite">⏳</div><div class="p-q" style="font-size:22px">${esc(S.q.text)}</div><p class="mute">Prépare-toi...</p></div>`;
   if(P === 'question'){
     if(answeredNow){
       const t = myAnswer && myAnswer.qi === S.qi ? myAnswer.ms : null;
@@ -1500,6 +1577,10 @@ function renderPlayer(){
     }
   }
   if(P === 'reveal') body = playerReveal(meP);
+  if(P === 'panel') body = `<div class="p-feedback" style="background:linear-gradient(160deg,rgba(228,133,72,.35),rgba(79,70,229,.3));flex:0">
+      <div class="big" style="font-size:34px">${esc(S.q.text)}</div>${S.q.body ? `<p style="font-size:18px">${nl2br(S.q.body)}</p>` : ''}
+      ${S.panelEnd ? `<div class="mini-timer" style="width:100%"><div id="panelBar"></div></div>` : ''}</div>
+    ${S.q.showBoard ? playerBoard(meP) : reactBlock()}`;
   if(P === 'leaderboard') body = playerBoard(meP);
   if(P === 'podium'){
     const top = meP.rank <= 3;
@@ -1509,7 +1590,7 @@ function renderPlayer(){
     if(top) setTimeout(() => confetti(140), 300);
   }
   app.innerHTML = `<div class="p-wrap">${head}${body}</div>`;
-  fx({theme: S.theme, snow: {lobby:.8, podium:1, ready:.4}[P] ?? .25, sleigh: P === 'lobby' || P === 'podium'});
+  fx({theme: S.theme, snow: {lobby:.8, podium:1, ready:.4, panel:.7}[P] ?? .25, sleigh: P === 'lobby' || P === 'podium'});
   requestAnimationFrame(() => setTimeout(() => document.querySelectorAll('.p-res .bar').forEach(b => b.style.width = b.dataset.w + '%'), 80));
   app.onclick = e => {
     if(e.target.closest('#reactBtn')) return sendReact(e.target.closest('#reactBtn'));
