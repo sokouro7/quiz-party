@@ -134,7 +134,7 @@ h2{font-size:clamp(22px,3vw,32px);font-weight:700;letter-spacing:-.02em}
 @keyframes drop{0%{transform:translateY(-120px);opacity:0}100%{transform:none;opacity:1}}
 
 /* Player */
-.p-wrap{flex:1;display:flex;flex-direction:column;padding:16px;gap:14px;max-width:560px;width:100%;margin:0 auto}
+.p-wrap{flex:1;display:flex;flex-direction:column;padding:16px 16px 100px;gap:14px;max-width:560px;width:100%;margin:0 auto}
 .p-head{display:flex;justify-content:space-between;align-items:center}
 .p-tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1}
 .p-tiles.many{grid-template-columns:1fr 1fr;grid-auto-rows:1fr}
@@ -227,6 +227,11 @@ body.noel.lobbyfx .hills{display:block}
 .ovl-phone .sheet{background:linear-gradient(160deg,#E48548,#9A4F22);border-radius:22px;padding:18px;box-shadow:0 -10px 40px rgba(0,0,0,.45);max-width:560px;margin:0 auto}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes sheetUp{from{transform:translateY(110%)}to{transform:none}}
+#astrip{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:5;display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:94vw;padding:6px 14px;border-radius:999px;background:rgba(10,12,40,.45);backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,.12);pointer-events:none}
+#astrip .av{font-size:30px;line-height:1;display:inline-block;animation:wiggle 2.4s ease-in-out infinite}
+body.has-strip .stage{padding-bottom:84px}
+.react-fab{position:fixed;right:16px;bottom:18px;z-index:20;width:74px;height:74px;border-radius:50%;font-size:36px;display:grid;place-items:center;background:rgba(255,255,255,.14);border:2px solid rgba(255,255,255,.35);backdrop-filter:blur(6px);box-shadow:0 8px 24px rgba(0,0,0,.35);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.react-fab .me{position:absolute;left:-6px;bottom:-4px;font-size:24px}
 .kbd{font-size:12px;padding:2px 6px;border-radius:6px;border:1px solid var(--line);color:var(--mute)}
 @media (max-width:700px){
   body{background-attachment:scroll}
@@ -258,6 +263,7 @@ body.noel.lobbyfx .hills{display:block}
      V2 = Supabase Realtime (même API send/on, voir commentaire)
    ========================================================= */
 
+const APP_VERSION = '2026-11-22c'; // à changer à chaque mise en ligne : les téléphones en retard se rechargent seuls
 const $ = (s, el = document) => el.querySelector(s);
 const app = $('#app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -477,7 +483,8 @@ function fx({theme = 'noel', snow = 0, sleigh = false, hills = false} = {}){
 // Projectile (boule de neige / emoji) lancé par un joueur vers sa bulle sur le grand écran
 function spawnProjectile(id){
   const noel = document.body.classList.contains('noel');
-  const target = [...document.querySelectorAll('#app [data-id]')].find(e => e.dataset.id === id);
+  const pick = sel => [...document.querySelectorAll(sel)].find(e => e.dataset.id === id);
+  const target = pick('#astrip [data-id]') || pick('#app [data-id]');
   let x1, y1;
   if(target){ const r = target.getBoundingClientRect(); x1 = r.left + r.width / 2; y1 = r.top + r.height / 2; }
   else { x1 = innerWidth * (.2 + Math.random() * .6); y1 = innerHeight * (.3 + Math.random() * .4); }
@@ -567,7 +574,7 @@ function countUp(el, from, to, dur = 900){
 }
 const fmt = n => Math.round(n).toLocaleString('fr-FR');
 const ord = n => n === 1 ? '1er' : n + 'e';
-const choicesOf = q => q.type === 'vf' ? ['Vrai','Faux'] : (q.choices || []);
+const choicesOf = q => q.type === 'vf' ? (q.choices && q.choices.length === 2 ? q.choices : ['Vrai','Faux']) : (q.choices || []);
 const isPanel = q => q && q.type === 'panneau';
 const normTxt = t => String(t ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/œ/g, 'oe').replace(/æ/g, 'ae')
   .replace(/[^a-z0-9]+/g, ' ').replace(/\b(le|la|les|l|un|une|des|du|de|d)\b/g, ' ').replace(/\s+/g, ' ').trim();
@@ -754,6 +761,7 @@ function renderEditor(saved){
   app.innerHTML = `
   <div class="topbar"><a href="#" class="logo">Quiz <b>Party</b></a>
     <div class="row">
+      <button class="btn ghost sm" data-a="translate">🌍 Traduire FR ⇄ EN</button>
       <button class="btn ghost sm" data-a="importText">📝 Importer du texte</button>
       <button class="btn ghost sm" data-a="import">⬆️ Importer un fichier</button>
       <button class="btn ghost sm" data-a="export">⬇️ Exporter</button>
@@ -825,6 +833,7 @@ function renderEditor(saved){
     if(a === 'export') downloadJSON(QUIZ, QUIZ.title || 'quiz');
     if(a === 'import') $('#fileIn').click();
     if(a === 'importText') openImport(saved);
+    if(a === 'translate') openTranslate(saved);
     if(a === 'launch') launchGame();
     if(a === 'resume'){ G = saved; connectHost(); renderHost(); }
     if(a === 'drop'){ store.del('quiz-host-game'); renderEditor(null); }
@@ -1086,6 +1095,68 @@ function parseQuestionsText(raw){
   return {questions: out, errors};
 }
 
+/* ---------- Traduction FR <-> EN (service gratuit MyMemory, sans compte) ---------- */
+const trCache = {};
+function decodeEntities(t){ const ta = document.createElement('textarea'); ta.innerHTML = t; return ta.value; }
+async function translateText(text, from, to){
+  if(!text || !String(text).trim() || /^[\d\s.,:%€$+-]+$/.test(text)) return text;
+  const key = from + to + text; if(trCache[key]) return trCache[key];
+  const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${from}|${to}`);
+  const d = await r.json();
+  const out = d && d.responseData && d.responseData.translatedText;
+  if(!out || d.responseStatus == 429 || /MYMEMORY WARNING|QUOTA/i.test(out)) throw new Error('quota');
+  if(+d.responseStatus !== 200) throw new Error('service');
+  return trCache[key] = decodeEntities(out);
+}
+function openTranslate(saved){
+  const bg = document.createElement('div'); bg.className = 'modal-bg';
+  bg.innerHTML = `<div class="modal" style="max-width:560px">
+    <div class="row"><h2 class="grow">🌍 Traduire le quiz</h2><button class="icon-btn" data-t="close">✕</button></div>
+    <p class="mute">Crée une copie traduite de "<b style="color:#fff">${esc(QUIZ.title)}</b>" dans Mes quiz : questions, réponses, panneaux et messages. L'original ne change pas. Relis la traduction, elle est automatique.</p>
+    <div class="row"><button class="btn warm grow" data-t="fr|en">🇫🇷 Français → 🇬🇧 Anglais</button><button class="btn grow" data-t="en|fr">🇬🇧 Anglais → 🇫🇷 Français</button></div>
+    <div id="trProg" class="mute" style="min-height:22px"></div></div>`;
+  document.body.appendChild(bg);
+  let busy = false;
+  bg.addEventListener('click', async e => {
+    const b = e.target.closest('[data-t]'); if(e.target === bg && !busy) return bg.remove(); if(!b || busy) return;
+    if(b.dataset.t === 'close') return bg.remove();
+    const [from, to] = b.dataset.t.split('|');
+    const copy = JSON.parse(JSON.stringify(QUIZ));
+    // liste de tous les textes à traduire, avec la façon de les réécrire
+    const jobs = [];
+    const add = (obj, k) => { if(obj && typeof obj[k] === 'string' && obj[k].trim()) jobs.push({obj, k}); };
+    add(copy, 'title');
+    copy.questions.forEach(q => {
+      add(q, 'text'); add(q, 'body'); add(q, 'unit');
+      if(q.type !== 'vf') (q.choices || []).forEach((c, i) => jobs.push({obj: q.choices, k: i}));
+      (q.accepted || []).forEach((c, i) => jobs.push({obj: q.accepted, k: i}));
+    });
+    (copy.messages || []).forEach(m => { add(m, 'title'); add(m, 'body'); });
+    copy.teams.list.forEach(t => add(t, 'name'));
+    busy = true; bg.querySelectorAll('[data-t]').forEach(x => x.disabled = true);
+    const prog = $('#trProg', bg); let done = 0, failed = null;
+    const worker = async () => {
+      while(jobs.length && !failed){
+        const j = jobs.shift();
+        try{ const src = j.obj[j.k]; if(typeof src === 'string' && src.trim()) j.obj[j.k] = await translateText(src, from, to); }
+        catch(err){ failed = err.message; }
+        done++; prog.textContent = `Traduction en cours... ${done}`;
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    busy = false;
+    if(failed){
+      prog.innerHTML = failed === 'quota' ? '⚠️ Limite gratuite du service de traduction atteinte pour aujourd\'hui. Réessaie demain ou traduis via le prompt Claude.' : '⚠️ Le service de traduction ne répond pas. Vérifie ta connexion et réessaie.';
+      bg.querySelectorAll('[data-t]').forEach(x => x.disabled = false); return;
+    }
+    // les bonnes réponses écrites gardent aussi la version d'origine (utile pour les noms propres)
+    copy.questions.forEach(q => { if(q.type === 'vf') q.choices = to === 'en' ? ['True','False'] : ['Vrai','Faux']; });
+    copy.questions.forEach((q, qi) => { if(q.type === 'libre'){ const orig = QUIZ.questions[qi].accepted || []; q.accepted = [...new Set([...q.accepted, ...orig].filter(x => x && x.trim()))]; } });
+    const nq = normalizeQuiz({...copy, id: uid(), title: `${copy.title} (${to.toUpperCase()})`, updatedAt: Date.now()});
+    QUIZ = nq; saveQuiz(); bg.remove(); renderEditor(saved); toast(`Quiz traduit en ${to === 'en' ? 'anglais' : 'français'} ✅ (copie ouverte)`);
+  });
+}
+
 function openImport(saved){
   const bg = document.createElement('div'); bg.className = 'modal-bg';
   bg.innerHTML = `<div class="modal">
@@ -1172,7 +1243,7 @@ function hostOnMsg(m){
 }
 const lastReact = {};
 function onReact(id){
-  if(!G.players[id] || !['lobby','leaderboard','podium'].includes(G.phase)) return;
+  if(!G.players[id] || !['lobby','reveal','leaderboard','panel','podium'].includes(G.phase)) return;
   const now = Date.now(); if(now - (lastReact[id] || 0) < 300) return; lastReact[id] = now;
   spawnProjectile(id);
 }
@@ -1221,7 +1292,7 @@ function publicState(){
   const q = curQ();
   return {
     from:'host', kind:'state', room:G.room, title:G.quiz.title, phase:G.phase, qi:G.qi,
-    total:G.quiz.questions.length, qnum: G.qi >= 0 ? qNum(G.quiz, G.qi) : 0, qtotal: qTotal(G.quiz), panelEnd: G.panelEnd || 0, overlay: G.overlay || null, theme:G.quiz.theme || 'noel', hostNow:Date.now(), deadline:G.deadline, readyEnd:G.readyEnd,
+    v: APP_VERSION, total:G.quiz.questions.length, qnum: G.qi >= 0 ? qNum(G.quiz, G.qi) : 0, qtotal: qTotal(G.quiz), panelEnd: G.panelEnd || 0, overlay: G.overlay || null, theme:G.quiz.theme || 'noel', hostNow:Date.now(), deadline:G.deadline, readyEnd:G.readyEnd,
     teams: G.quiz.teams.enabled ? G.quiz.teams.list : null,
     q: q && G.phase !== 'lobby' ? {type:q.type, text:q.text, choices:choicesOf(q), time:q.time, points:q.points, unit:q.unit || '', body:q.body || '', showBoard:!!q.showBoard} : null,
     answered: Object.keys(G.answers),
@@ -1397,6 +1468,7 @@ function renderHost(force = true){
   const th = G.quiz.theme || 'noel';
   fx({theme: th, snow: {lobby:1, ready:.6, question:.2, reveal:.4, leaderboard:.5, podium:1, panel:.8}[P] ?? .3, sleigh: P === 'lobby' || P === 'podium' || P === 'panel', hills: P === 'lobby' || P === 'podium'});
   if(P === 'lobby') runArena();
+  renderStrip(['reveal','leaderboard','panel'].includes(P));
   app.onclick = app.oninput = app.onchange = null;
   $('#mute').onclick = () => { muted = !muted; store.set('quiz-muted', muted); $('#mute').textContent = muted ? '🔇' : '🔊'; };
   $('#quit').onclick = () => { if(confirm('Quitter la partie ? Les joueurs seront déconnectés.')){ G.phase = 'podium'; transport.send(publicState()); store.del('quiz-host-game'); G = null; transport.close(); transport = null; stopTimers(); location.hash = 'host'; route(); } };
@@ -1415,7 +1487,7 @@ function hostClicks(e){
   if(a === 'kick'){ delete G.players[b.dataset.id]; changed(); }
   if(a === 'balance'){ const L = G.quiz.teams.list; Object.values(G.players).sort(() => Math.random() - .5).forEach((p,i) => p.team = L[i % L.length].id); changed(); }
   if(a === 'replay'){ G.phase = 'lobby'; G.qi = -1; Object.values(G.players).forEach(p => Object.assign(p,{score:0,streak:0,lastGain:0,lastOk:null})); changed(); }
-  if(a === 'editor'){ const o = document.getElementById('ovl'); if(o) o.remove(); store.del('quiz-host-game'); transport.close(); transport = null; G = null; stopTimers(); renderEditor(null); }
+  if(a === 'editor'){ const o = document.getElementById('ovl'); if(o) o.remove(); renderStrip(false); store.del('quiz-host-game'); transport.close(); transport = null; G = null; stopTimers(); renderEditor(null); }
 }
 function patchHost(){
   // mises à jour légères pendant une question (compteur de réponses)
@@ -1580,6 +1652,18 @@ function renderOverlay(){
   }
 }
 
+function renderStrip(on){
+  let el = document.getElementById('astrip');
+  document.body.classList.toggle('has-strip', on);
+  if(!on){ if(el) el.remove(); return; }
+  if(!el){ el = document.createElement('div'); el.id = 'astrip'; document.body.appendChild(el); }
+  const ps = Object.values(G.players);
+  const key = ps.map(p => p.id + p.emoji).join();
+  if(el.dataset.key === key) return;
+  el.dataset.key = key;
+  el.innerHTML = ps.map(p => `<span class="av" data-id="${esc(p.id)}" style="animation-delay:${(-Math.random()*2.4).toFixed(2)}s">${p.emoji}</span>`).join('');
+}
+
 function boardMini(n = 5){
   const R = ranked().slice(0, n), TS = teamScores(), maxT = TS ? Math.max(1, ...TS.map(t => t.score)) : 1;
   return `${TS ? `<div class="team-bars" style="max-width:640px">${TS.map(t => `<div class="team-bar"><div class="tb-name" style="color:${t.color}">${esc(t.name)}</div><div class="tb-track"><div class="tb-fill" style="background:${t.color}" data-w="${t.score/maxT*100}"></div></div><div class="tb-sc">${fmt(t.score)}</div></div>`).join('')}</div>` : ''}
@@ -1658,6 +1742,8 @@ function startPlayer(code){
   transport.on(m => {
     if(m && m.from === '_net'){ transport.send({kind:'hello'}); if(ME.joined) transport.send({kind:'join', ...ME}); return; }
     if(!m || m.from !== 'host' || m.kind !== 'state' || m.room !== code) return;
+    if(m.v && m.v > APP_VERSION && sess.get('quiz-reloaded', '') !== m.v){ // version du téléphone en cache plus ancienne que celle de l'animateur
+      sess.set('quiz-reloaded', m.v); location.replace(location.pathname + '?v=' + encodeURIComponent(m.v) + location.hash); return; }
     clockOffset = m.hostNow - Date.now();
     const prevPhase = S && S.phase + S.qi;
     S = m; renderOverlay();
@@ -1715,12 +1801,12 @@ function renderPlayer(){
         <div class="p-tiles">${S.q.choices.map((c,i) => `<button class="p-tile" data-v="${i}" style="background:${COLORS[i]};animation-delay:${i*50}ms"><span class="shape">${SHAPES[i]}</span><span>${esc(c)}</span></button>`).join('')}</div>`;
     }
   }
-  if(P === 'reveal') body = playerReveal(meP);
+  if(P === 'reveal') body = playerReveal(meP) + reactFab(meP);
   if(P === 'panel') body = `<div class="p-feedback" style="background:linear-gradient(160deg,rgba(228,133,72,.35),rgba(79,70,229,.3));flex:0">
       <div class="big" style="font-size:34px">${esc(S.q.text)}</div>${S.q.body ? `<p style="font-size:18px">${nl2br(S.q.body)}</p>` : ''}
       ${S.panelEnd ? `<div class="mini-timer" style="width:100%"><div id="panelBar"></div></div>` : ''}</div>
-    ${S.q.showBoard ? playerBoard(meP) : reactBlock()}`;
-  if(P === 'leaderboard') body = playerBoard(meP);
+    ${S.q.showBoard ? playerBoard(meP, false) : ''}${reactFab(meP)}`;
+  if(P === 'leaderboard') body = playerBoard(meP, false) + reactFab(meP);
   if(P === 'podium'){
     const top = meP.rank <= 3;
     body = `<div class="p-feedback" style="background:${top ? 'linear-gradient(160deg,#F5C451,#D08A1E)' : 'rgba(255,255,255,.06)'}">
@@ -1732,7 +1818,7 @@ function renderPlayer(){
   fx({theme: S.theme, snow: {lobby:.8, podium:1, ready:.4, panel:.7}[P] ?? .25, sleigh: P === 'lobby' || P === 'podium'});
   requestAnimationFrame(() => setTimeout(() => document.querySelectorAll('.p-res .bar').forEach(b => b.style.width = b.dataset.w + '%'), 80));
   app.onclick = e => {
-    if(e.target.closest('#reactBtn')) return sendReact(e.target.closest('#reactBtn'));
+    const rb = e.target.closest('#reactBtn, .react-trigger'); if(rb) return sendReact(rb);
     const b = e.target.closest('.p-tile'); if(b) sendAnswer(+b.dataset.v);
     if(e.target.id === 'estGo') sendEst();
   };
@@ -1808,7 +1894,7 @@ function playerReveal(me){
   return banner + `<div class="p-q">${esc(S.q.text)}</div>` + detail;
 }
 
-function playerBoard(me){
+function playerBoard(me, withReact = true){
   const top = S.players.slice(0, 5), inTop = top.some(p => p.id === ME.id);
   const row = p => `<div class="r ${p.id === ME.id ? 'me' : ''}"><span style="width:28px">${p.rank}</span><span>${p.emoji}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</span><span>${fmt(p.score)}</span></div>`;
   const team = S.teamScores && S.teamScores.map((t,i) => `<div class="r"><span style="width:28px">${i+1}</span><span style="flex:1;color:${t.color}">${esc(t.name)}</span><span>${fmt(t.score)}</span></div>`).join('');
@@ -1816,8 +1902,9 @@ function playerBoard(me){
       <div><div class="t">Tu es ${ord(me.rank)}</div><div style="opacity:.9;font-size:14px">sur ${S.players.length} joueurs</div></div><div class="pts">${fmt(me.score)}</div></div>
     <div class="mini-lb">${top.map(row).join('')}${inTop ? '' : `<div class="p-note">⋯</div>${row(me)}`}</div>
     ${team ? `<p class="lbl" style="margin-top:6px">Équipes</p><div class="mini-lb">${team}</div>` : ''}
-    ${reactBlock()}`;
+    ${withReact ? reactBlock() : ''}`;
 }
+function reactFab(me){ return `<button class="react-fab react-trigger" aria-label="Lancer">${S.theme === 'noel' ? '❄️' : '🎉'}<span class="me">${me.emoji}</span></button>`; }
 
 function playerJoin(){
   fx({theme: S.theme, snow: .6});
