@@ -269,6 +269,12 @@ body.th-sexy .glow{display:block}
 body.has-strip .stage{padding-bottom:84px}
 .react-fab{position:fixed;right:16px;bottom:18px;z-index:20;width:74px;height:74px;border-radius:50%;font-size:36px;display:grid;place-items:center;background:rgba(255,255,255,.14);border:2px solid rgba(255,255,255,.35);backdrop-filter:blur(6px);box-shadow:0 8px 24px rgba(0,0,0,.35);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .react-fab .me{position:absolute;left:-6px;bottom:-4px;font-size:24px}
+.q-alt{font-size:clamp(18px,2.4vw,30px);color:#C7D2FE;text-align:center;font-style:italic;font-weight:500;margin-top:-8px;line-height:1.2}
+.q-alt.big{font-size:clamp(24px,3.6vw,44px)}
+.t-alt{display:block;font-size:.62em;opacity:.85;font-weight:500;font-style:italic}
+.lang-pick{display:flex;gap:8px;justify-content:center;width:100%;max-width:320px}
+.lang-pick button{flex:1;padding:10px;border-radius:12px;border:2px solid rgba(255,255,255,.25);font-weight:700}
+.lang-pick button.sel{background:var(--indigo);border-color:var(--indigo-2)}
 .kbd{font-size:12px;padding:2px 6px;border-radius:6px;border:1px solid var(--line);color:var(--mute)}
 @media (max-width:700px){
   body{background-attachment:scroll}
@@ -305,10 +311,12 @@ body.has-strip .stage{padding-bottom:84px}
      V2 = Supabase Realtime (même API send/on, voir commentaire)
    ========================================================= */
 
-const APP_VERSION = '2026-11-22f'; // à changer à chaque mise en ligne : les téléphones en retard se rechargent seuls
+const APP_VERSION = '2026-11-22g'; // à changer à chaque mise en ligne : les téléphones en retard se rechargent seuls
 const $ = (s, el = document) => el.querySelector(s);
 let LANG = 'fr';                                   // langue de l'interface affichée (partie en cours)
 const L = (fr, en) => LANG === 'en' ? en : fr;
+// grand écran en mode bilingue : les textes importants s'affichent dans les deux langues
+const L2 = (fr, en) => (typeof G !== 'undefined' && G && G.mode === 'both' && location.hash.startsWith('#host')) ? `${fr} · ${en}` : L(fr, en);
 const app = $('#app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -1427,7 +1435,8 @@ function publicState(){
   const q = curQ();
   return {
     from:'host', kind:'state', room:G.room, title:G.quiz.title, phase:G.phase, qi:G.qi,
-    v: APP_VERSION, lang: G.lang || 'fr', total:G.quiz.questions.length, qnum: G.qi >= 0 ? qNum(G.quiz, G.qi) : 0, qtotal: qTotal(G.quiz), panelEnd: G.panelEnd || 0, overlay: G.overlay || null, theme:G.quiz.theme || 'noel', hostNow:Date.now(), deadline:G.deadline, readyEnd:G.readyEnd,
+    v: APP_VERSION, lang: G.lang || 'fr', mode: G.mode || G.lang || 'fr',
+    alt: G.alt ? {lang: G.altLang, title: G.alt.title, q: (q && G.phase !== 'lobby') ? (a => ({text:a.text, choices:choicesOf(a), unit:a.unit || '', body:a.body || '', acc0:(a.accepted || [])[0] || ''}))(G.alt.questions[G.qi]) : null} : null, total:G.quiz.questions.length, qnum: G.qi >= 0 ? qNum(G.quiz, G.qi) : 0, qtotal: qTotal(G.quiz), panelEnd: G.panelEnd || 0, overlay: G.overlay || null, theme:G.quiz.theme || 'noel', hostNow:Date.now(), deadline:G.deadline, readyEnd:G.readyEnd,
     teams: G.quiz.teams.enabled ? G.quiz.teams.list : null,
     q: q && G.phase !== 'lobby' ? {type:q.type, text:q.text, choices:choicesOf(q), time:q.time, points:q.points, unit:q.unit || '', body:q.body || '', showBoard:!!q.showBoard} : null,
     answered: Object.keys(G.answers),
@@ -1637,24 +1646,39 @@ function ptag(p, kick = true){
   return `<span class="ptag wiggle" style="animation-delay:0s,${(-Math.random()*2.4).toFixed(2)}s" ${kick ? `data-h="kick" data-id="${esc(p.id)}" title="Cliquer pour retirer"` : ''}><span style="font-size:20px">${p.emoji}</span>${esc(p.name)}</span>`;
 }
 
-async function setGameLang(lang){
-  if(!G || G.translating || lang === (G.lang || 'fr')) return;
-  const src = G.quizSrc || G.quiz, srcLang = src.lang || 'fr';
-  if(lang === srcLang){ G.quiz = src; delete G.quizSrc; G.lang = lang; changed(); return; }
+// mode de langue de la partie : 'fr', 'en' (tout traduit) ou 'both' (chaque joueur choisit sur son téléphone)
+async function setGameLang(mode){
+  if(!G || G.translating) return;
+  const cur = G.mode || G.lang || 'fr'; if(mode === cur) return;
+  const src = G.quizSrc || G.quiz, srcLang = src.lang || 'fr', other = srcLang === 'fr' ? 'en' : 'fr';
+  if(mode === srcLang){ G.quiz = src; delete G.quizSrc; G.alt = null; G.lang = srcLang; G.mode = mode; changed(); return; }
   const game = G;
   G.translating = true; changed();
   try{
-    const tq = await translateQuiz(src, srcLang, lang, n => { const el = $('#langProg'); if(el) el.textContent = `Traduction du quiz... ${n}`; });
+    const tq = await translateQuiz(src, srcLang, other, n => { const el = $('#langProg'); if(el) el.textContent = `Traduction du quiz... ${n}`; });
     if(G !== game) return;                               // partie quittée pendant la traduction
     tq.theme = src.theme;
-    G.quizSrc = src; G.quiz = tq; G.lang = lang;
-    toast(lang === 'en' ? 'Quiz traduit en anglais ✅' : 'Quiz traduit en français ✅');
+    if(mode === 'both'){
+      // le quiz de référence garde sa langue ; les réponses écrites acceptent les deux langues
+      const merged = JSON.parse(JSON.stringify(src));
+      merged.questions.forEach((q, i) => { if(q.type === 'libre') q.accepted = [...new Set([...(q.accepted || []), ...(tq.questions[i].accepted || [])].filter(x => x && x.trim()))]; });
+      G.quizSrc = src; G.quiz = merged; G.alt = tq; G.altLang = other; G.lang = srcLang;
+      toast('Mode bilingue prêt ✅ chaque joueur choisit sa langue');
+    } else {
+      G.quizSrc = src; G.quiz = tq; G.alt = null; G.lang = other;
+      toast(other === 'en' ? 'Quiz traduit en anglais ✅' : 'Quiz traduit en français ✅');
+    }
+    G.mode = mode;
   }catch(err){
     if(G !== game) return;
     toast(err.message === 'quota' ? '⚠️ Limite gratuite de traduction atteinte aujourd\'hui' : '⚠️ Traduction impossible, vérifie la connexion');
   }
   G.translating = false; changed();
 }
+function altOf(){ return G && G.alt && G.qi >= 0 ? G.alt.questions[G.qi] : null; }
+function altTxt(a, b){ return b && normTxt(a) !== normTxt(b) ? b : ''; }
+function altFlag(){ return G.altLang === 'en' ? '🇬🇧' : '🇫🇷'; }
+function altLine(main, alt, cls = 'q-alt'){ const t = altTxt(main, alt); return t ? `<div class="${cls}">${altFlag()} ${esc(t)}</div>` : ''; }
 
 function hostLobby(){
   const players = Object.values(G.players);
@@ -1667,7 +1691,7 @@ function hostLobby(){
     <p class="mute" style="font-size:18px">${TH(G.quiz.theme).titleIcon} ${esc(G.quiz.title)}</p>
     <div class="row" style="justify-content:center;gap:28px">
       ${qrSVG(joinLink())}
-      <div style="text-align:left"><p style="font-size:18px">${L('Scanne le QR code ou entre le code', 'Scan the QR code or enter the code')}</p><div class="code">${esc(G.room)}</div>
+      <div style="text-align:left"><p style="font-size:18px">${L2('Scanne le QR code ou entre le code', 'Scan the QR code or enter the code')}</p><div class="code">${esc(G.room)}</div>
       <p class="mute" style="font-size:13px;word-break:break-all;max-width:420px">${esc(joinLink())}</p></div>
     </div>
     <div class="row" style="justify-content:center">
@@ -1679,11 +1703,12 @@ function hostLobby(){
     <p class="mute" style="font-size:14px;margin-top:-6px">${players.length ? `${TH(G.quiz.theme).react} ${L(`Les joueurs peuvent lancer ${TH(G.quiz.theme).projName} depuis leur téléphone`, `Players can throw ${TH(G.quiz.theme).projEn} from their phone`)}` : ''}</p>
     ${list}
     <div class="row" style="justify-content:center;gap:8px">
-      <button class="btn sm ${(G.lang || 'fr') === 'fr' ? 'warm' : 'ghost'}" data-h="lang" data-l="fr" ${G.translating ? 'disabled' : ''}>🇫🇷 Français</button>
-      <button class="btn sm ${G.lang === 'en' ? 'warm' : 'ghost'}" data-h="lang" data-l="en" ${G.translating ? 'disabled' : ''}>🇬🇧 English</button>
+      ${(() => { const m = G.mode || G.lang || 'fr';
+        return [['fr','🇫🇷 Français'],['en','🇬🇧 English'],['both','🇫🇷🇬🇧 Les deux (chacun choisit)']].map(([k, lab]) =>
+          `<button class="btn sm ${m === k ? 'warm' : 'ghost'}" data-h="lang" data-l="${k}" ${G.translating ? 'disabled' : ''}>${lab}</button>`).join(''); })()}
       <span class="mute" id="langProg" style="font-size:14px">${G.translating ? 'Traduction du quiz...' : ''}</span>
     </div>
-    <button class="btn big warm" data-h="primary" ${players.length && !G.translating ? '' : 'disabled'}>${L("C'est parti !", "Let's go!")} <span class="kbd">${L('Espace', 'Space')}</span></button>
+    <button class="btn big warm" data-h="primary" ${players.length && !G.translating ? '' : 'disabled'}>${L2("C'est parti !", "Let's go!")} <span class="kbd">${L('Espace', 'Space')}</span></button>
   </div>`;
 }
 
@@ -1692,20 +1717,20 @@ function hostReady(){
   return `<div class="center">
     <div class="pill" style="font-size:16px">${T.icon} ${tl(T)}</div>
     <p class="mute" style="font-size:20px">${qLabel()}</p>
-    <div class="q-text">${esc(q.text)}</div>
+    <div class="q-text">${esc(q.text)}</div>${altLine(q.text, altOf() && altOf().text)}
     <div class="ready-num">${Math.max(1, Math.ceil((G.readyEnd - Date.now()) / 1000))}</div>
     <button class="btn ghost sm" data-h="primary">${L('Ouvrir les réponses maintenant', 'Open answers now')} ⏭</button></div>`;
 }
 
 function tilesHTML(q, reveal){
-  const ch = choicesOf(q);
+  const ch = choicesOf(q), a = altOf(), ac = a ? choicesOf(a) : [];
   const total = reveal ? Math.max(1, reveal.counts.reduce((a,b) => a+b, 0)) : 1;
   return `<div class="tiles">${ch.map((c,i) => {
     const win = reveal && reveal.winners.includes(i);
     const dim = reveal && reveal.type !== 'sondage' && !win;
     return `<div class="tile ${win ? 'win' : ''} ${dim ? 'dim' : ''}" style="background:${COLORS[i]};animation-delay:${i*70}ms">
       ${reveal ? `<div class="bar" data-w="${(reveal.counts[i] / total * 100).toFixed(1)}"></div>` : ''}
-      <span class="shape">${SHAPES[i]}</span><span class="lab">${esc(c)}</span>
+      <span class="shape">${SHAPES[i]}</span><span class="lab">${esc(c)}${altTxt(c, ac[i]) ? `<small class="t-alt">${esc(ac[i])}</small>` : ''}</span>
       ${reveal ? `<span class="cnt">${reveal.counts[i]}</span>` : ''}</div>`; }).join('')}</div>`;
 }
 
@@ -1714,10 +1739,10 @@ function hostQuestion(){
   return `<div class="stage">
     <div class="q-top"><span class="pill">${T.icon} ${tl(T)}</span><span class="pill">${qLabel()}</span>
       <button class="btn ghost sm" data-h="primary">${L('Révéler', 'Reveal')} ⏭</button></div>
-    <div class="q-text">${esc(q.text)}</div>
+    <div class="q-text">${esc(q.text)}</div>${altLine(q.text, altOf() && altOf().text)}
     <div class="q-mid">${timerSVG(130)}
       <div class="counter"><div class="n"><span id="ansCount">${Object.keys(G.answers).length}</span><span class="mute" style="font-size:28px">/<span id="ansTotal">${Object.keys(G.players).length}</span></span></div><div class="mute">${L('réponses', 'answers')}</div></div></div>
-    ${q.type === 'estimation' ? `<p class="center mute" style="flex:0;font-size:22px">🔢 ${L('Tapez votre estimation sur votre téléphone', 'Type your estimate on your phone')}${q.unit ? ' (' + L('en ', 'in ') + esc(q.unit) + ')' : ''}</p>` : q.type === 'libre' ? `<p class="center mute" style="flex:0;font-size:22px">✍️ ${L('Écrivez votre réponse sur votre téléphone', 'Write your answer on your phone')}</p>` : tilesHTML(q, null)}
+    ${q.type === 'estimation' ? `<p class="center mute" style="flex:0;font-size:22px">🔢 ${L2('Tapez votre estimation sur votre téléphone', 'Type your estimate on your phone')}${q.unit ? ' (' + L('en ', 'in ') + esc(q.unit) + ')' : ''}</p>` : q.type === 'libre' ? `<p class="center mute" style="flex:0;font-size:22px">✍️ ${L2('Écrivez votre réponse sur votre téléphone', 'Write your answer on your phone')}</p>` : tilesHTML(q, null)}
   </div>`;
 }
 
@@ -1731,11 +1756,11 @@ function hostReveal(){
   const fastest = Object.entries(R.gains).filter(([,g]) => g.ok).sort((a,b) => a[1].ms - b[1].ms)[0];
   let body;
   if(q.type === 'estimation'){
-    body = `<div class="center" style="flex:0;gap:8px"><p class="mute">${L('La bonne réponse', 'The right answer')}</p><div class="est-box">${fmt(R.target)} ${esc(R.unit)}</div></div>
+    body = `<div class="center" style="flex:0;gap:8px"><p class="mute">${L2('La bonne réponse', 'The right answer')}</p><div class="est-box">${fmt(R.target)} ${esc(R.unit)}</div></div>
       <div class="card" style="max-width:600px;margin:0 auto;width:100%">${R.closest.length ? R.closest.map((c,i) => `<div class="row" style="padding:8px 0;border-bottom:1px solid var(--line)"><b style="width:30px">${i===0?'🏆':ord(i+1)}</b><span class="grow">${name(c.pid)}</span><b>${fmt(c.v)}</b><span class="mute" style="width:110px;text-align:right">${L('écart', 'off by')} ${fmt(c.d)}</span></div>`).join('') : `<p class="mute">${L('Aucune réponse', 'No answers')}</p>`}</div>`;
   } else if(q.type === 'libre'){
     const okN = Object.values(R.gains).filter(g => g.ok).length, tot = Object.keys(R.gains).length;
-    body = `<div class="center" style="flex:0;gap:8px"><p class="mute">${L('La bonne réponse', 'The right answer')}</p><div class="est-box">${esc(R.accepted[0] || '')}</div>
+    body = `<div class="center" style="flex:0;gap:8px"><p class="mute">${L2('La bonne réponse', 'The right answer')}</p><div class="est-box">${esc(R.accepted[0] || '')}</div>
         ${R.accepted.length > 1 ? `<p class="mute">${L('Aussi accepté', 'Also accepted')} : ${R.accepted.slice(1).map(esc).join(', ')}</p>` : ''}
         <p style="font-size:20px"><b style="color:var(--ok)">${okN}</b> ${L(`bonne${okN > 1 ? 's' : ''} réponse${okN > 1 ? 's' : ''} sur`, `correct answer${okN > 1 ? 's' : ''} out of`)} ${tot}</p></div>
       <div class="row" style="justify-content:center;max-width:900px;margin:0 auto">${R.given.map(g => `<span class="pill" style="font-size:18px;padding:10px 16px;background:${g.ok ? 'rgba(34,197,94,.25)' : 'rgba(239,68,68,.2)'};border-color:${g.ok ? 'var(--ok)' : 'rgba(239,68,68,.5)'}">${g.ok ? '✓' : '✗'} ${esc(g.text)}${g.n > 1 ? ` <span class="mute">×${g.n}</span>` : ''}</span>`).join('') || `<p class="mute">${L('Aucune réponse', 'No answers')}</p>`}</div>`;
@@ -1743,7 +1768,7 @@ function hostReveal(){
   return `<div class="stage">
     <div class="q-top"><span class="pill">${T.icon} ${tl(T)}</span><span class="pill">${qLabel()}</span>
       <button class="btn" data-h="primary">${q.board === false ? (G.qi >= G.quiz.questions.length - 1 ? L('Podium final 🎉', 'Final podium 🎉') : L('Suite ➜', 'Next ➜')) : L('Classement ➜', 'Leaderboard ➜')} <span class="kbd">${L('Espace', 'Space')}</span></button></div>
-    <div class="q-text" style="font-size:clamp(22px,3vw,36px)">${esc(q.text)}</div>
+    <div class="q-text" style="font-size:clamp(22px,3vw,36px)">${esc(q.text)}</div>${altLine(q.text, altOf() && altOf().text)}
     ${msg ? `<h2 style="text-align:center">${msg}</h2>` : ''}
     ${body}
     ${fastest && q.speed ? `<p style="text-align:center" class="mute">⚡ ${L('Le plus rapide', 'Fastest')} : <b style="color:#fff">${name(fastest[0])}</b> ${L('en', 'in')} ${L((fastest[1].ms/1000).toFixed(1).replace('.',','), (fastest[1].ms/1000).toFixed(1))} s</p>` : ''}
@@ -1754,7 +1779,7 @@ function hostLeaderboard(){
   const R = ranked().slice(0, 8), last = G.qi >= G.quiz.questions.length - 1;
   const TS = teamScores(), maxT = TS ? Math.max(1, ...TS.map(t => t.score)) : 1;
   return `<div class="stage">
-    <div class="q-top"><h2>🏆 ${L('Classement', 'Leaderboard')}</h2><button class="btn ${last ? 'warm' : ''}" data-h="primary">${last ? L('Podium final 🎉', 'Final podium 🎉') : L('Question suivante ➜', 'Next question ➜')} <span class="kbd">${L('Espace', 'Space')}</span></button></div>
+    <div class="q-top"><h2>🏆 ${L2('Classement', 'Leaderboard')}</h2><button class="btn ${last ? 'warm' : ''}" data-h="primary">${last ? L('Podium final 🎉', 'Final podium 🎉') : L('Question suivante ➜', 'Next question ➜')} <span class="kbd">${L('Espace', 'Space')}</span></button></div>
     ${TS ? `<div class="team-bars">${TS.map(t => `<div class="team-bar"><div class="tb-name" style="color:${t.color}">${esc(t.name)}</div><div class="tb-track"><div class="tb-fill" style="background:${t.color}" data-w="${t.score/maxT*100}"></div></div><div class="tb-sc">${fmt(t.score)}</div></div>`).join('')}</div>` : ''}
     <div class="lb" style="height:${R.length * 72}px">${R.map(p => `
       <div class="lb-row ${p.rank === 1 ? 'top1' : ''}" data-id="${esc(p.id)}" data-rank="${p.rank}" data-prev="${Math.min(p.prevRank || p.rank, 9)}" style="top:${((Math.min(p.prevRank || p.rank, 9)) - 1) * 72}px">
@@ -1764,7 +1789,8 @@ function hostLeaderboard(){
 }
 
 function showOverlay(m){
-  G.overlay = {id: uid(), title: m.title || '📣', body: m.body || '', showBoard: !!m.showBoard};
+  const am = G.alt && m.id ? (G.alt.messages || []).find(x => x.id === m.id) : null;
+  G.overlay = {id: uid(), title: m.title || '📣', body: m.body || '', showBoard: !!m.showBoard, alt: am ? {title: am.title, body: am.body || ''} : null};
   changed(false); beep(660, .12, 'triangle'); setTimeout(() => beep(880, .18, 'triangle'), 120);
 }
 function openMsgMenu(){
@@ -1791,7 +1817,7 @@ function openMsgMenu(){
 let ovlShownId = null, ovlDismissed = null;
 function renderOverlay(){
   const isHost = location.hash.startsWith('#host');
-  LANG = isHost ? ((G && G.lang) || 'fr') : ((S && S.lang) || LANG);
+  LANG = isHost ? ((G && G.lang) || 'fr') : (S ? playerLang() : LANG);
   const o = isHost ? (G && G.overlay) : (S && S.overlay);
   let el = document.getElementById('ovl');
   if(!o || (!isHost && ovlDismissed === o.id)){ if(el) el.remove(); ovlShownId = null; return; }
@@ -1800,14 +1826,15 @@ function renderOverlay(){
   ovlShownId = o.id;
   if(isHost){
     el.className = 'ovl-host';
-    el.innerHTML = `<div class="center" style="gap:22px"><div class="panel-title">${esc(o.title)}</div>${o.body ? `<p class="panel-body">${nl2br(o.body)}</p>` : ''}
+    el.innerHTML = `<div class="center" style="gap:22px"><div class="panel-title">${esc(o.title)}</div>${o.alt ? altLine(o.title, o.alt.title, 'q-alt big') : ''}${o.body ? `<p class="panel-body">${nl2br(o.body)}</p>` : ''}${o.alt && o.body ? altLine(o.body, o.alt.body) : ''}
       ${o.showBoard ? boardMini(5) : ''}<button class="btn warm" data-h="closeOvl">${L('Fermer le message', 'Close message')} <span class="kbd">${L('Échap', 'Esc')}</span></button></div>`;
     el.onclick = hostClicks;
     setTimeout(() => el.querySelectorAll('.tb-fill').forEach(b => b.style.width = b.dataset.w + '%'), 60);
   } else {
     const me = S.players.find(p => p.id === ME.id);
     el.className = 'ovl-phone';
-    el.innerHTML = `<div class="sheet"><div style="font-size:26px;font-weight:700;line-height:1.1">📣 ${esc(o.title)}</div>${o.body ? `<p style="margin-top:6px">${nl2br(o.body)}</p>` : ''}
+    const oo = useAlt() && o.alt ? o.alt : o;
+    el.innerHTML = `<div class="sheet"><div style="font-size:26px;font-weight:700;line-height:1.1">📣 ${esc(oo.title)}</div>${oo.body ? `<p style="margin-top:6px">${nl2br(oo.body)}</p>` : ''}
       ${o.showBoard && me ? `<div class="mini-lb" style="margin-top:10px">${S.players.slice(0,3).map(p => `<div class="r ${p.id === ME.id ? 'me' : ''}"><span>${['🥇','🥈','🥉'][p.rank-1]}</span><span style="flex:1">${p.emoji} ${esc(p.name)}</span><span>${fmt(p.score)}</span></div>`).join('')}${me.rank > 3 ? `<div class="r me"><span>${me.rank}</span><span style="flex:1">${me.emoji} ${esc(me.name)}</span><span>${fmt(me.score)}</span></div>` : ''}</div>` : ''}
       <button class="btn" id="ovlOk" style="width:100%;margin-top:12px">OK 👍</button></div>`;
     $('#ovlOk', el).onclick = () => { ovlDismissed = o.id; renderOverlay(); };
@@ -1835,8 +1862,8 @@ function boardMini(n = 5){
 function hostPanel(){
   const q = curQ(), last = G.qi >= G.quiz.questions.length - 1;
   return `<div class="center" style="gap:22px">
-    <div class="panel-title">${esc(q.text)}</div>
-    ${q.body ? `<p class="panel-body">${nl2br(q.body)}</p>` : ''}
+    <div class="panel-title">${esc(q.text)}</div>${altLine(q.text, altOf() && altOf().text, 'q-alt big')}
+    ${q.body ? `<p class="panel-body">${nl2br(q.body)}</p>` : ''}${q.body ? altLine(q.body, altOf() && altOf().body) : ''}
     ${q.showBoard ? boardMini(5) : ''}
     ${G.panelEnd ? `<div class="mini-timer" style="width:100%;max-width:520px"><div id="panelBar"></div></div>` : ''}
     <button class="btn ${last ? 'warm' : ''}" data-h="primary">${last ? L('Podium final 🎉', 'Final podium 🎉') : L('Continuer ➜', 'Continue ➜')} <span class="kbd">${L('Espace', 'Space')}</span></button>
@@ -1905,6 +1932,7 @@ let playerKey = '';
 function startPlayer(code){
   LANG = (navigator.language || 'fr').toLowerCase().startsWith('en') ? 'en' : 'fr';
   ME = sess.get('quiz-me-' + code, null) || {id: uid(), name: sess.get('quiz-lastname', ''), emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)], team: null, joined:false};
+  ME.lang = ME.lang || ((navigator.language || 'fr').toLowerCase().startsWith('en') ? 'en' : 'fr');
   myAnswer = sess.get('quiz-ans-' + code, null);
   S = null; playerKey = '';
   if(transport) transport.close();
@@ -1917,7 +1945,7 @@ function startPlayer(code){
     lastStateAt = Date.now();
     clockOffset = m.hostNow - Date.now();
     const prevPhase = S && S.phase + S.qi;
-    S = m; LANG = S.lang || 'fr'; renderOverlay();
+    S = m; LANG = playerLang(); renderOverlay();
     if(playerKey && !playerKey.startsWith('join')) playerFx();   // ré-applique l'ambiance de l'animateur à chaque mise à jour
     if(ME.joined && !S.players.find(p => p.id === ME.id) && S.phase === 'lobby' && Date.now() - (ME.joinedAt || 0) > 2500){ ME.joined = false; saveMe(); } // retiré par l'animateur
     if((S.phase === 'lobby' || S.phase === 'ready') && myAnswer && myAnswer.qi >= S.qi){ myAnswer = null; sess.set('quiz-ans-' + code, null); }
@@ -1936,6 +1964,10 @@ function startPlayer(code){
   }, 3000));
   tickers.push(setTimeout(() => { if(!S){ const w = $('#wait'); if(w) w.innerHTML = L('Aucune partie trouvée avec ce code.<br>Vérifie le code ou que l\'animateur est bien sur la page.<br><br><a href="#join" style="color:#fff">Changer de code</a>', 'No game found with this code.<br>Check the code, or that the host is on the game page.<br><br><a href="#join" style="color:#fff">Change code</a>'); } }, 8000));
 }
+// contenu affiché au joueur : version traduite si la partie est bilingue et qu'il a choisi l'autre langue
+function useAlt(){ return S && S.mode === 'both' && S.alt && ME && ME.lang === S.alt.lang; }
+function QQ(){ return useAlt() && S.alt.q ? {...S.q, ...S.alt.q} : S.q; }
+function playerLang(){ return S && S.mode === 'both' ? (ME.lang || S.lang || 'fr') : ((S && S.lang) || 'fr'); }
 function playerFx(){ const P = S.phase; fx({theme: S.theme, snow: {lobby:.8, podium:1, ready:.4, panel:.7}[P] ?? .25, sleigh: P === 'lobby' || P === 'podium', hills: P === 'lobby' || P === 'podium'}); }
 const saveMe = () => { sess.set('quiz-me-' + S.room, ME); sess.set('quiz-lastname', ME.name); };
 
@@ -1943,13 +1975,13 @@ function renderPlayer(){
   const meP = S.players.find(p => p.id === ME.id);
   const inGame = ME.joined && meP;
   const answeredNow = S.answered.includes(ME.id) || (myAnswer && myAnswer.qi === S.qi);
-  const key = !inGame ? 'join' + JSON.stringify(S.teams) + S.lang + S.theme : [S.phase, S.qi, answeredNow, S.lang, S.theme, S.phase === 'lobby' ? S.players.length + (meP.team || '') : ''].join('|');
+  const key = !inGame ? 'join' + JSON.stringify(S.teams) + S.lang + S.mode + ME.lang + S.theme : [S.phase, S.qi, answeredNow, S.lang, S.mode, ME.lang, S.theme, S.phase === 'lobby' ? S.players.length + (meP.team || '') : ''].join('|');
   if(key === playerKey) return;
   const typing = document.activeElement && ['nm','est','txt'].includes(document.activeElement.id);
   if(typing && key.startsWith('join') && playerKey.startsWith('join')) return;
   playerKey = key;
   if(!inGame) return playerJoin();
-  const head = `<div class="p-head"><span class="pill">${meP.emoji} ${esc(meP.name)}</span><span class="pill net" id="net"></span><span class="pill">${fmt(meP.score)} pts</span></div>`;
+  const head = `<div class="p-head"><span class="pill">${meP.emoji} ${esc(meP.name)}</span>${S.mode === 'both' ? `<button class="pill" id="langSw" title="Langue / Language">${ME.lang === 'en' ? '🇬🇧 EN' : '🇫🇷 FR'}</button>` : `<span class="pill net" id="net"></span>`}<span class="pill">${fmt(meP.score)} pts</span></div>`;
   let body = '';
   const P = S.phase;
   if(P === 'lobby'){
@@ -1959,28 +1991,28 @@ function renderPlayer(){
       <p class="mute">${L(`${S.players.length} joueur${S.players.length > 1 ? 's' : ''} connecté${S.players.length > 1 ? 's' : ''}. Regarde le grand écran, ça va commencer.`, `${S.players.length} player${S.players.length > 1 ? 's' : ''} connected. Watch the big screen, it's about to start.`)}</p>
       ${reactBlock()}</div>`;
   }
-  if(P === 'ready') body = `<div class="p-feedback" style="background:rgba(255,255,255,.05)"><p class="mute">Question ${S.qnum} / ${S.qtotal}</p><div class="pill">${TYPES[S.q.type].icon} ${tl(TYPES[S.q.type])}</div><div class="emo" style="animation:pulse 1s infinite">⏳</div><div class="p-q" style="font-size:22px">${esc(S.q.text)}</div><p class="mute">${L('Prépare-toi...', 'Get ready...')}</p></div>`;
+  if(P === 'ready') body = `<div class="p-feedback" style="background:rgba(255,255,255,.05)"><p class="mute">Question ${S.qnum} / ${S.qtotal}</p><div class="pill">${TYPES[S.q.type].icon} ${tl(TYPES[S.q.type])}</div><div class="emo" style="animation:pulse 1s infinite">⏳</div><div class="p-q" style="font-size:22px">${esc(QQ().text)}</div><p class="mute">${L('Prépare-toi...', 'Get ready...')}</p></div>`;
   if(P === 'question'){
     if(answeredNow){
       const t = myAnswer && myAnswer.qi === S.qi ? myAnswer.ms : null;
       body = `<div class="mini-timer"><div></div></div><div class="p-feedback" style="background:rgba(99,102,241,.2)"><div class="emo">🚀</div><div class="big">${L('Réponse envoyée', 'Answer sent')}</div>
         ${t != null ? `<p class="mute">⚡ ${L('en', 'in')} ${L((t/1000).toFixed(1).replace('.',','), (t/1000).toFixed(1))} s</p>` : ''}<p class="mute">${L('On attend les autres...', 'Waiting for the others...')}</p></div>`;
     } else if(S.q.type === 'libre'){
-      body = `<div class="mini-timer"><div></div></div><p style="font-weight:700;font-size:20px;text-align:center">${esc(S.q.text)}</p>
+      body = `<div class="mini-timer"><div></div></div><p style="font-weight:700;font-size:20px;text-align:center">${esc(QQ().text)}</p>
         <form class="p-feedback" id="txtForm" style="background:rgba(255,255,255,.05);flex:0;padding:20px"><input id="txt" type="text" maxlength="60" enterkeyhint="send" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false" placeholder="${L('Ta réponse', 'Your answer')}" style="font-size:26px;text-align:center;font-weight:700">
         <button type="submit" class="btn big warm" style="width:100%">${L('Valider', 'Submit')}</button></form>`;
     } else if(S.q.type === 'estimation'){
-      body = `<div class="mini-timer"><div></div></div><p style="font-weight:700;font-size:20px;text-align:center">${esc(S.q.text)}</p>
+      body = `<div class="mini-timer"><div></div></div><p style="font-weight:700;font-size:20px;text-align:center">${esc(QQ().text)}</p>
         <div class="p-feedback" style="background:rgba(255,255,255,.05);flex:0;padding:20px"><input id="est" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="${L('Ton estimation', 'Your estimate')}" style="font-size:32px;text-align:center;font-weight:700">
-        ${S.q.unit ? `<p class="mute">${L('en', 'in')} ${esc(S.q.unit)}</p>` : ''}<button class="btn big warm" id="estGo" style="width:100%">${L('Valider', 'Submit')}</button></div>`;
+        ${QQ().unit ? `<p class="mute">${L('en', 'in')} ${esc(QQ().unit)}</p>` : ''}<button class="btn big warm" id="estGo" style="width:100%">${L('Valider', 'Submit')}</button></div>`;
     } else {
-      body = `<div class="mini-timer"><div></div></div><p style="font-weight:700;font-size:18px;text-align:center">${esc(S.q.text)}</p>
-        <div class="p-tiles">${S.q.choices.map((c,i) => `<button class="p-tile" data-v="${i}" style="background:${COLORS[i]};animation-delay:${i*50}ms"><span class="shape">${SHAPES[i]}</span><span>${esc(c)}</span></button>`).join('')}</div>`;
+      body = `<div class="mini-timer"><div></div></div><p style="font-weight:700;font-size:18px;text-align:center">${esc(QQ().text)}</p>
+        <div class="p-tiles">${QQ().choices.map((c,i) => `<button class="p-tile" data-v="${i}" style="background:${COLORS[i]};animation-delay:${i*50}ms"><span class="shape">${SHAPES[i]}</span><span>${esc(c)}</span></button>`).join('')}</div>`;
     }
   }
   if(P === 'reveal') body = playerReveal(meP) + reactFab(meP);
   if(P === 'panel') body = `<div class="p-feedback" style="background:linear-gradient(160deg,rgba(228,133,72,.35),rgba(79,70,229,.3));flex:0">
-      <div class="big" style="font-size:34px">${esc(S.q.text)}</div>${S.q.body ? `<p style="font-size:18px">${nl2br(S.q.body)}</p>` : ''}
+      <div class="big" style="font-size:34px">${esc(QQ().text)}</div>${QQ().body ? `<p style="font-size:18px">${nl2br(QQ().body)}</p>` : ''}
       ${S.panelEnd ? `<div class="mini-timer" style="width:100%"><div id="panelBar"></div></div>` : ''}</div>
     ${S.q.showBoard ? playerBoard(meP, false) : ''}${reactFab(meP)}`;
   if(P === 'leaderboard') body = playerBoard(meP, false) + reactFab(meP);
@@ -1996,6 +2028,7 @@ function renderPlayer(){
   playerCelebrate(P, meP);
   requestAnimationFrame(() => setTimeout(() => document.querySelectorAll('.p-res .bar').forEach(b => b.style.width = b.dataset.w + '%'), 80));
   app.onclick = e => {
+    if(e.target.closest('#langSw')){ ME.lang = ME.lang === 'en' ? 'fr' : 'en'; sess.set('quiz-me-' + S.room, ME); LANG = playerLang(); ovlShownId = null; playerKey = ''; renderPlayer(); renderOverlay(); return; }
     const rb = e.target.closest('#reactBtn, .react-trigger'); if(rb) return sendReact(rb);
     const av = e.target.closest('#pAv'); if(av){ const r = av.getBoundingClientRect(); emojiBurst(r.left + r.width / 2, r.top + r.height / 2, 8);
       av.animate([{transform:'translateY(0) scale(1)'},{transform:'translateY(-40px) scale(1.2) rotate(15deg)'},{transform:'translateY(0) scale(1)'}], {duration:500, easing:'cubic-bezier(.3,1.6,.5,1)'}); navigator.vibrate && navigator.vibrate(10); return; }
@@ -2066,25 +2099,25 @@ function playerReveal(me){
   let detail = '';
   if(t === 'libre'){
     detail = `<div class="card" style="text-align:center;padding:16px"><div class="mute">${L('Bonne réponse', 'Right answer')}</div>
-        <div style="font-size:34px;font-weight:700;line-height:1.15">${esc(R.accepted[0] || '')}</div>
-        ${R.accepted.length > 1 ? `<div class="mute" style="font-size:13px">${L('Aussi accepté', 'Also accepted')} : ${R.accepted.slice(1).map(esc).join(', ')}</div>` : ''}
+        <div style="font-size:34px;font-weight:700;line-height:1.15">${esc((useAlt() && QQ().acc0) || R.accepted[0] || '')}</div>
+        ${(() => { const main = (useAlt() && QQ().acc0) || R.accepted[0]; const others = R.accepted.filter(x => x !== main); return others.length ? `<div class="mute" style="font-size:13px">${L('Aussi accepté', 'Also accepted')} : ${others.map(esc).join(', ')}</div>` : ''; })()}
         ${g ? `<div style="margin-top:8px">${L('Ta réponse', 'Your answer')} : <b style="color:${g.ok ? '#86EFAC' : '#FCA5A5'}">${esc(g.value)}</b></div>` : ''}</div>`;
   } else if(t === 'estimation'){
     const nameOf = id => { const p = S.players.find(x => x.id === id); return p ? `${p.emoji} ${esc(p.name)}` : '?'; };
     detail = `<div class="card" style="text-align:center;padding:16px"><div class="mute">${L('Bonne réponse', 'Right answer')}</div>
-        <div style="font-size:44px;font-weight:700;line-height:1.1">${fmt(R.target)} ${esc(R.unit)}</div>
+        <div style="font-size:44px;font-weight:700;line-height:1.1">${fmt(R.target)} ${esc(useAlt() ? QQ().unit : R.unit)}</div>
         ${g ? `<div class="mute" style="margin-top:6px">${L('Ta réponse', 'Your answer')} : <b style="color:#fff">${fmt(g.value)}</b> · ${L('écart', 'off by')} ${fmt(g.diff)}</div>` : ''}</div>
       <div class="mini-lb">${R.closest.slice(0,3).map((c,i) => `<div class="r ${c.pid === ME.id ? 'me' : ''}"><span>${['🥇','🥈','🥉'][i]}</span><span style="flex:1">${nameOf(c.pid)}</span><span>${fmt(c.v)}</span></div>`).join('')}</div>`;
   } else {
     const tot = Math.max(1, R.counts.reduce((a,b) => a + b, 0));
     const note = {majorite:L('La réponse la plus votée gagne', 'The most voted answer wins'), minorite: R.winners.length ? L('La réponse la moins votée gagne', 'The least voted answer wins') : L('Pas de minorité cette fois', 'No minority this time'), sondage:L('Résultats du vote', 'Poll results')}[t] || '';
-    detail = `<div class="p-res">${S.q.choices.map((c,i) => {
+    detail = `<div class="p-res">${QQ().choices.map((c,i) => {
         const win = R.winners.includes(i), dim = t !== 'sondage' && !win, mine = g && g.value === i;
         return `<div class="r ${win ? 'win' : ''} ${dim ? 'dim' : ''}" style="background:${COLORS[i]};animation-delay:${i*60}ms"><div class="bar" data-w="${(R.counts[i] / tot * 100).toFixed(1)}"></div>
           <span>${SHAPES[i]}</span><span style="flex:1">${esc(c)}${mine ? ` <b>👈 ${L('toi', 'you')}</b>` : ''}</span><span>${win && t !== 'sondage' ? '✓ ' : ''}${R.counts[i]}</span></div>`; }).join('')}</div>
       ${note ? `<p class="p-note">${note}</p>` : ''}`;
   }
-  return banner + `<div class="p-q">${esc(S.q.text)}</div>` + detail;
+  return banner + `<div class="p-q">${esc(QQ().text)}</div>` + detail;
 }
 
 function playerBoard(me, withReact = true){
@@ -2101,10 +2134,12 @@ function reactFab(me){ return `<button class="react-fab react-trigger" aria-labe
 
 function playerJoin(){
   fx({theme: S.theme, snow: .6});
+  LANG = playerLang();
   const teams = S.teams;
   if(teams && !teams.some(t => t.id === ME.team)) ME.team = null;
   app.innerHTML = `<div class="center">
-    <div class="logo">Quiz <b>Party</b></div><p class="mute">${esc(S.title)} · ${esc(S.room)}</p>
+    <div class="logo">Quiz <b>Party</b></div><p class="mute">${esc(useAlt() ? S.alt.title : S.title)} · ${esc(S.room)}</p>
+    ${S.mode === 'both' ? `<div class="lang-pick"><button type="button" data-lg="fr" class="${ME.lang !== 'en' ? 'sel' : ''}">🇫🇷 Français</button><button type="button" data-lg="en" class="${ME.lang === 'en' ? 'sel' : ''}">🇬🇧 English</button></div>` : ''}
     <span class="emoji-pick" id="emo">${ME.emoji}</span>
     <p class="mute" style="font-size:13px;margin-top:-10px">${L("Touche l'avatar pour en changer", 'Tap the avatar to change it')}</p>
     <form id="joinForm" style="width:100%;display:flex;flex-direction:column;align-items:center;gap:18px"><input id="nm" type="text" maxlength="18" placeholder="${L('Ton pseudo', 'Your nickname')}" value="${esc(ME.name)}" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" enterkeyhint="go" style="max-width:320px;text-align:center;font-size:22px;font-weight:600">
@@ -2113,6 +2148,7 @@ function playerJoin(){
     <button type="submit" class="btn big warm" id="joinGo">${L('Je rejoins', 'Join')} 🚀</button></form>
     ${S.phase !== 'lobby' ? `<p class="mute">${L('La partie a commencé, tu peux quand même rejoindre.', 'The game has started, you can still join.')}</p>` : ''}</div>`;
   $('#emo').onclick = e => { ME.emoji = EMOJIS[(EMOJIS.indexOf(ME.emoji) + 1) % EMOJIS.length]; e.target.textContent = ME.emoji; };
+  document.querySelectorAll('[data-lg]').forEach(b => b.onclick = () => { ME.lang = b.dataset.lg; ME.name = $('#nm').value; LANG = playerLang(); playerKey = ''; playerJoin(); });
   document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => { ME.team = b.dataset.t; ME.name = $('#nm').value; playerKey = ''; playerJoin(); });
   const go = () => { const n = $('#nm').value.trim(); if(!n) return toast(L('Choisis un pseudo', 'Pick a nickname')); ME.name = n; ME.joined = true; ME.joinedAt = Date.now(); saveMe(); transport.send({kind:'join', ...ME}); playerKey = ''; };
   $('#joinForm').onsubmit = e => { e.preventDefault(); $('#nm').blur(); go(); };
